@@ -1,0 +1,48 @@
+{
+    "label": "As recorded",
+    "description": ["Signals as they were recorded in the 10-20 setup"],
+    "names": [
+        "fp1", "f3", "c3", "p3", "f7", "t3", "t5", "o1",
+        "fp2", "f4", "c4", "p4", "f8", "t4", "t6", "o2",
+        "fz", "cz", "pz",
+        "chest", "ecgl", "ecgr", "ekg", "emg", "eog", "loc", "res", "roc",
+        "ps"
+    ],
+    "channels":  [
+        { "name": "fp2", "label": "Fp2", "active": "fp2", "reference": [], "type": "eeg", "laterality": "d", "unit": "uV" },
+        { "name": "f8", "label": "F8", "active": "f8", "reference": [], "type": "eeg", "laterality": "d", "unit": "uV" },
+        { "name": "t4", "label": "T4", "active": "t4", "reference": [], "type": "eeg", "laterality": "d", "unit": "uV" },
+        { "name": "t6", "label": "T6", "active": "t6", "reference": [], "type": "eeg", "laterality": "d", "unit": "uV" },
+        { "name": "fp1", "label": "Fp1", "active": "fp1", "reference": [], "type": "eeg", "laterality": "s", "unit": "uV" },
+        { "name": "f7", "label": "F7", "active": "f7", "reference": [], "type": "eeg", "laterality": "s", "unit": "uV" },
+        { "name": "t3", "label": "T3", "active": "t3", "reference": [], "type": "eeg", "laterality": "s", "unit": "uV" },
+        { "name": "t5", "label": "T5", "active": "t5", "reference": [], "type": "eeg", "laterality": "s", "unit": "uV" },
+        { "name": "f4", "label": "F4", "active": "f4", "reference": [], "type": "eeg", "laterality": "d", "unit": "uV" },
+        { "name": "c4", "label": "C4", "active": "c4", "reference": [], "type": "eeg", "laterality": "d", "unit": "uV" },
+        { "name": "p4", "label": "P4", "active": "p4", "reference": [], "type": "eeg", "laterality": "d", "unit": "uV" },
+        { "name": "o2", "label": "O2", "active": "o2", "reference": [], "type": "eeg", "laterality": "d", "unit": "uV" },
+        { "name": "f3", "label": "F3", "active": "f3", "reference": [], "type": "eeg", "laterality": "s", "unit": "uV" },
+        { "name": "c3", "label": "C3", "active": "c3", "reference": [], "type": "eeg", "laterality": "s", "unit": "uV" },
+        { "name": "p3", "label": "P3", "active": "p3", "reference": [], "type": "eeg", "laterality": "s", "unit": "uV" },
+        { "name": "o1", "label": "O1", "active": "o1", "reference": [], "type": "eeg", "laterality": "s", "unit": "uV" },
+        { "name": "fz", "label": "Fz", "active": "fz", "reference": [], "type": "eeg", "laterality": "z", "unit": "uV" },
+        { "name": "cz", "label": "Cz", "active": "cz", "reference": [], "type": "eeg", "laterality": "z", "unit": "uV" },
+        { "name": "pz", "label": "Pz", "active": "pz", "reference": [], "type": "eeg", "laterality": "z", "unit": "uV" },
+        { "name": "res", "label": "RESP", "active": "res", "reference": [], "type": "res", "unit": "uV" },
+        { "name": "eog", "label": "EOG", "active": "eog", "reference": [], "type": "eog", "unit": "uV" },
+        { "name": "eog-bp", "label": "EOG", "active": "roc", "reference": ["loc"], "type": "eog", "unit": "uV" },
+        { "name": "ekg", "label": "EKG", "active": "ekg", "reference": [], "type": "ekg", "unit": "uV" },
+        { "name": "ekg-bp", "label": "EKG", "active": "ecgr", "reference": ["ecgl"], "type": "ekg", "unit": "uV" },
+        { "name": "emg", "label": "EMG", "active": "emg", "reference": [], "type": "emg", "unit": "uV" },
+        { "name": "ps", "label": "Photic", "active": "ps", "reference": [], "polarity": 1, "type": "act" },
+        { "name": "annotations", "label": "Annotations", "active": "annotations", "reference": [], "type": "meta" }
+    ],
+    "reference": {
+        "common": true,
+        "description": "recording reference",
+        "label": "REF",
+        "type": "measured common",
+        "unit": "uV"
+    },
+    "layout": [ 4, 4, 4, 4, 3, 7 ]
+}
