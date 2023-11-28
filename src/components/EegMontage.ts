@@ -16,19 +16,18 @@ import {
 } from "@epicurrents/core/dist/types"
 import EegMontageChannel from './EegMontageChannel'
 import { type EegResource } from "../types"
-import setups from '../config/default_montages/setup.json'
+import config from '../config/default_montages/config.json'
 import Log from 'scoped-ts-log'
 
 const SCOPE = 'EegMontage'
 
 const DEFAULTS = {} as { [setup: string]: { [montage: string]: any } }
 // Build default setups.
-for (const setup in setups) {
-    DEFAULTS[setup] = {}
-    for (const montage in setups[setup as keyof typeof setups]) {
-        const curSetup = setups[setup as keyof typeof setups]
-        DEFAULTS[setup][montage] = (
-            await import(`../settings/default_montages/${curSetup[montage as keyof typeof curSetup]}`)
+for (const [std, setups] of Object.entries(config)) {
+    DEFAULTS[std] = {}
+    for (const [montage, path] of Object.entries(setups)) {
+        DEFAULTS[std][montage] = (
+            await import(`../settings/default_montages/${path}`)
         ).default
     }
 }
