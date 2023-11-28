@@ -15,7 +15,7 @@ import {
     type SafeObject,
     type StudyContext,
     type VideoAttachment,
-} from '@epicurrents/core/dist/types'
+} from "@epicurrents/core/dist/types"
 import EegRecording from "../EegRecording"
 import { type EegResource, type EegStudyProperties } from "../types"
 //import EegRecording from "../EegRecording"

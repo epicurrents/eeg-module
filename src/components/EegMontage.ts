@@ -14,10 +14,10 @@ import {
     type ConfigBiosignalMontage,
     type MemoryManager,
 } from "@epicurrents/core/dist/types"
-import EegMontageChannel from './EegMontageChannel'
+import EegMontageChannel from "./EegMontageChannel"
 import { type EegResource } from "../types"
-import config from '../config/default_montages/config.json'
-import Log from 'scoped-ts-log'
+import config from "../config/default_montages/config.json"
+import Log from "scoped-ts-log"
 
 const SCOPE = 'EegMontage'
 

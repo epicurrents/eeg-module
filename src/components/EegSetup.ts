@@ -5,10 +5,10 @@
  * @license    Apache-2.0
  */
 
-import { GenericBiosignalSetup } from '@epicurrents/core'
-import { type BiosignalChannel, type ConfigBiosignalSetup } from '@epicurrents/core/dist/types'
-import tenTwenty from '../config/default_setups/10-20.json'
-import Log from 'scoped-ts-log'
+import { GenericBiosignalSetup } from "@epicurrents/core"
+import { type BiosignalChannel, type ConfigBiosignalSetup } from "@epicurrents/core/dist/types"
+import tenTwenty from "../config/default_setups/10-20.json"
+import Log from "scoped-ts-log"
 
 const SCOPE = 'EegSetup'
 

@@ -10,12 +10,12 @@ import {
     GenericBiosignalHeaders,
     GenericBiosignalResource,
     SETTINGS,
-} from '@epicurrents/core'
+} from "@epicurrents/core"
 import {
     calculateSignalOffsets,
     secondsToTimeString,
     timePartsToShortString,
-} from '@epicurrents/core/dist/util'
+} from "@epicurrents/core/dist/util"
 import {
     type ConfigBiosignalSetup,
     type ConfigMapChannels,
@@ -26,13 +26,13 @@ import {
     type BiosignalMontageService,
     type MemoryManager,
     type StudyContext,
-} from '@epicurrents/core/dist/types'
+} from "@epicurrents/core/dist/types"
 import EegService from "./service/EegService"
-import EegSettings from './config'
-import { EegMontage, EegSetup, EegVideo } from './components'
-import { type EegResource } from './types'
-import { MutexExportProperties } from 'asymmetric-io-mutex'
-import Log from 'scoped-ts-log'
+import EegSettings from "./config"
+import { EegMontage, EegSetup, EegVideo } from "./components"
+import { type EegResource } from "./types"
+import { MutexExportProperties } from "asymmetric-io-mutex"
+import Log from "scoped-ts-log"
 
 const SCOPE = "EegRecording"
 export default class EegRecording extends GenericBiosignalResource implements EegResource {
