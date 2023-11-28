@@ -1,0 +1,12 @@
+{
+    "10-20": {
+        "montages": {
+            "avg": "10-20/montages/avg.json",
+            "dbn": "10-20/montages/dbn.json",
+            "lpl": "10-20/montages/lpl.json",
+            "rec": "10-20/montages/rec.json",
+            "trv": "10-20/montages/trv.json"
+        },
+        "setup": "10-20/setup.json"
+    }
+}

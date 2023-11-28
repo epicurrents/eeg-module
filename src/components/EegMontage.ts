@@ -10,24 +10,25 @@ import { SETTINGS } from "@epicurrents/core/dist/config"
 import { mapMontageChannels } from "@epicurrents/core/dist/util"
 import {
     type BiosignalMontage,
+    type BiosignalMontageTemplate,
     type BiosignalSetup,
     type ConfigBiosignalMontage,
     type MemoryManager,
 } from "@epicurrents/core/dist/types"
 import EegMontageChannel from "./EegMontageChannel"
 import { type EegResource } from "../types"
-import config from "../config/default_montages/config.json"
+import config from "../config/defaults.json"
 import Log from "scoped-ts-log"
 
 const SCOPE = 'EegMontage'
 
-const DEFAULTS = {} as { [setup: string]: { [montage: string]: any } }
-// Build default setups.
-for (const [std, setups] of Object.entries(config)) {
-    DEFAULTS[std] = {}
-    for (const [montage, path] of Object.entries(setups)) {
-        DEFAULTS[std][montage] = (
-            await import(`../settings/default_montages/${path}`)
+const DEFAULTS = {} as { [std: string]: { [montage: string]: BiosignalMontageTemplate } }
+// Build default montages.
+for (const [name, setup] of Object.entries(config)) {
+    DEFAULTS[name] = {}
+    for (const [montage, path] of Object.entries(setup.montages)) {
+        DEFAULTS[name][montage] = (
+            await import(`../config/defaults/${path}`)
         ).default
     }
 }

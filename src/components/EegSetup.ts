@@ -7,21 +7,27 @@
 
 import { GenericBiosignalSetup } from "@epicurrents/core"
 import { type BiosignalChannel, type ConfigBiosignalSetup } from "@epicurrents/core/dist/types"
-import tenTwenty from "../config/default_setups/10-20.json"
+import config from "../config/defaults.json"
 import Log from "scoped-ts-log"
 
-const SCOPE = 'EegSetup'
-
-const DEFAULTS = {
-    '10-20': tenTwenty as ConfigBiosignalSetup,
+const DEFAULTS = {} as { [setup: string]: ConfigBiosignalSetup }
+for (const name in config) {
+    DEFAULTS[name] = (
+        await import(`../config/defaults/${name}/setup.json`)
+    ).default
 }
+
+const SCOPE = 'EegSetup'
 
 export default class EegSetup extends GenericBiosignalSetup {
 
     constructor (id: string, channels: BiosignalChannel[], config?: ConfigBiosignalSetup) {
         super(id, channels, config)
-        if (config && id === 'default:10-20') {
-            this.loadConfig(channels, DEFAULTS['10-20'])
+        if (!config && id.startsWith('default:')) {
+            const setup = DEFAULTS[id.substring(8) as keyof typeof DEFAULTS]
+            if (setup) {
+                this.loadConfig(channels, setup)
+            }
         } else if (!config) {
             Log.error(`No configuration found, setup did not finish.`, SCOPE)
         }
