@@ -111,7 +111,7 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
                     this._service.requestMemory(totalMem).then(success => {
                         if (success) {
                             Log.debug(`Memory allocation complete.`, SCOPE)
-                            this.setupBuffer().then((success) => {
+                            this.setupCache().then((success) => {
                                 Log.debug(`Buffer setup complete.`, SCOPE)
                                 this.startCachingSignals()
                             })
@@ -288,11 +288,11 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
         Log.info(`All buffers released from ${this.name}`, SCOPE)
     }
 
-    async setupBuffer (): Promise<boolean> {
-        const success = await this._service.setupBuffer().then(async response => {
+    async setupCache (): Promise<boolean> {
+        const success = await this._service.setupCache().then(async response => {
             if (response) {
                 const EEG_SETTINGS = SETTINGS.modules.eeg as typeof EegSettings
-                Log.debug(`Buffer for raw signal data initiated.`, SCOPE)
+                Log.debug(`Cache for raw signal data initiated.`, SCOPE)
                 this._dataProps = response
                 for (const setup of this._setups) {
                     const montages = EEG_SETTINGS.defaultMontages[
@@ -317,7 +317,7 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
                 }
                 return true
             } else {
-                Log.error(`Buffer initialization failed.`, SCOPE)
+                Log.error(`Cache initialization failed.`, SCOPE)
                 return false
             }
         }).catch(e => {
