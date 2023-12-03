@@ -3,11 +3,8 @@ const path = require('path')
 module.exports = {
     rootDir: path.resolve(__dirname, './'),
     coverageDirectory: "<rootDir>/tests/coverage/",
-    extensionsToTreatAsEsm: ['.ts', '.vue'],
+    extensionsToTreatAsEsm: ['.ts'],
     globals: {
-        "vue3-jest": {
-            "tsconfig": false
-        },
         'ts-jest': {
             useESM: true,
             tsconfig: {
@@ -22,9 +19,9 @@ module.exports = {
                 "moduleResolution": "node",
                 "baseUrl": "./",
                 "paths": {
-                    "CONFIG/*": ["src/config/*"],
-                    "ROOT/*": ["src/*"],
-                    "TYPES/*": ["src/types/*"],
+                    "#root/*": ["./*"],
+                    "#runtime*": ["src/runtime/index.ts"],
+                    "#*": ["src/*"],
                 }
             }
         },
@@ -33,30 +30,25 @@ module.exports = {
         "js",
         "ts",
         "json",
-        "vue",
     ],
     moduleNameMapper: {
-        "^@/(.*)$": "<rootDir>/src/$1", // Jest-spesific
-        "^CONFIG/(.*)$": "<rootDir>/src/config/$1",
-        "^ROOT/(.*)$": "<rootDir>/src/$1",
-        "^TYPES/(.*)$": "<rootDir>/src/types/$1",
+        "^#runtime$": "<rootDir>/src/runtime/index.ts",
+        "^#root/(.*)$": "<rootDir>/$1",
+        "^#(.*)$": "<rootDir>/src/$1",
     },
     modulePaths: [
         "<rootDir>/src/",
     ],
+    preset: "ts-jest/presets/js-with-ts",
     roots: [
         "<rootDir>/tests/",
-    ],
-    snapshotSerializers: [
-        "jest-serializer-vue",
     ],
     transform: {
         "^.+\\.js$": "babel-jest",
         "^.+\\.ts$": "ts-jest",
-        "^.+\\.vue$": "vue3-jest",
     },
     transformIgnorePatterns: [
-        "node_modules/(?!(@babel)/)",
+        "node_modules/(?!(@epicurrents)/)",
     ],
     //testRegex: "(test/.*|(\\.|/)(test|spec))\\.(tsx?)$",
     testRegex: "tests.ts$",

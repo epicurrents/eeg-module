@@ -58,7 +58,7 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
         channels: BiosignalChannel[],
         headers: GenericBiosignalHeaders,
         fileWorker: Worker,
-        loaderManager: MemoryManager,
+        loaderManager?: MemoryManager,
         config = {} as BiosignalConfig
     ) {
         const EEG_SETTINGS = SETTINGS.modules.eeg as typeof EegSettings
@@ -70,8 +70,10 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
                 ].default,
             config?.type || 'eeg'
         )
-        this.setMemoryManager(loaderManager)
         this._headers = headers
+        if (loaderManager) {
+            this.setMemoryManager(loaderManager)
+        }
         if (config.formatHeader) {
             this._formatHeader = config.formatHeader
         }
