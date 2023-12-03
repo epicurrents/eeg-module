@@ -96,28 +96,30 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
         }
         // Listen to is-active changes.
         this.addPropertyUpdateHandler('is-active', async () => {
-            // Complete loader setup if not already done.
-            if (this.isActive && !this._service.isReady) {
-                // Calculate needed memory to load the entire recording.
-                let totalMem = 4 // For lock field.
-                const dataFieldsLen = BiosignalMutex.SIGNAL_DATA_POS
-                for (const chan of channels) {
-                    totalMem += chan.sampleCount + dataFieldsLen
-                }
-                // Let this happen in the background.
-                this._service.requestMemory(totalMem).then(success => {
-                    if (success) {
-                        Log.debug(`Memory allocation complete.`, SCOPE)
-                        this.setupBuffer().then((success) => {
-                            Log.debug(`Buffer setup complete.`, SCOPE)
-                            this.startCachingSignals()
-                        })
-                    } else {
-                        Log.error(`Memory allocation failed.`, SCOPE)
+            if (this._memoryManager) {
+                // Complete loader setup if not already done.
+                if (this.isActive && !this._service.isReady) {
+                    // Calculate needed memory to load the entire recording.
+                    let totalMem = 4 // For lock field.
+                    const dataFieldsLen = BiosignalMutex.SIGNAL_DATA_POS
+                    for (const chan of channels) {
+                        totalMem += chan.sampleCount + dataFieldsLen
                     }
-                })
-            } else if (!this.isActive) {
-                //this.releaseBuffers()
+                    // Let memory allocation happen in the background.
+                    this._service.requestMemory(totalMem).then(success => {
+                        if (success) {
+                            Log.debug(`Memory allocation complete.`, SCOPE)
+                            this.setupBuffer().then((success) => {
+                                Log.debug(`Buffer setup complete.`, SCOPE)
+                                this.startCachingSignals()
+                            })
+                        } else {
+                            Log.error(`Memory allocation failed.`, SCOPE)
+                        }
+                    })
+                } else if (!this.isActive) {
+                    //this.releaseBuffers()
+                }
             }
         })
     }
