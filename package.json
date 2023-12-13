@@ -1,7 +1,7 @@
 {
-  "name": "@epicurrents/module",
+  "name": "@epicurrents/eeg-module",
   "version": "0.0.1-0",
-  "description": "EpiCurrents module",
+  "description": "EpiCurrents EEG module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "exports": {
@@ -40,12 +40,12 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/epicurrents/module.git"
+    "url": "https://github.com/epicurrents/eeg-module.git"
   },
   "author": "Sampsa Lohi",
   "license": "Apache-2.0",
   "dependencies": {
-    "@epicurrents/core": "^0.0.2-alpha.38",
+    "@epicurrents/core": "^0.0.2-alpha.46",
     "asymmetric-io-mutex": "^0.6.8",
     "axios": "^1.6.2",
     "scoped-ts-log": "^1.1.0"
