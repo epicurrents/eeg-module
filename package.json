@@ -13,12 +13,10 @@
     "./config": "./dist/config/index.js",
     "./runtime": "./dist/runtime/index.js",
     "./types": "./dist/types/index.d.ts",
-    "./util": "./dist/util/index.js",
     "./package.json": "./package.json",
     "./dist/config": "./dist/config/index.js",
     "./dist/runtime": "./dist/runtime/index.js",
-    "./dist/types": "./dist/types/index.d.ts",
-    "./dist/util": "./dist/util/index.js"
+    "./dist/types": "./dist/types/index.d.ts"
   },
   "imports": {
     "#runtime*": "./dist/src/runtime/index.ts",
