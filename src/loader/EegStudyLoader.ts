@@ -87,7 +87,7 @@ export default class EegStudyLoader extends BiosignalStudyLoader {
             // Check for video attachments
             for (let i=0; i<context.files.length; i++) {
                 if (context.files[i].type === 'video' || context.files[i].name.endsWith('.mp4')) {
-
+                    null // TODO: Video handling?
                 } else if (context.files[i].type === 'sig') {
                     context.files[0].type += `:eeg`
                 }

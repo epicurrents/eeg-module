@@ -15,9 +15,10 @@ import {
     type SetupStudyResponse,
     type SignalCacheResponse,
     type StudyContext,
+    type WorkerResponse,
 } from "@epicurrents/core/dist/types"
 
-const SCOPE = "EegService"
+//const SCOPE = "EegService"
 
 export default class EegService extends GenericBiosignalService implements BiosignalDataService {
     /** Resolved or rejected based on the success of data loading. */
@@ -49,7 +50,7 @@ export default class EegService extends GenericBiosignalService implements Biosi
         const fileUrl = study.files.filter(f => f.role === 'data').map(file => file.url)[0]
         const commission = this._commissionWorker(
             'setup-study',
-            new Map<string, any>([
+            new Map<string, unknown>([
                 ['header', header.serializable],
                 ['url', fileUrl],
                 ['formatHeader', formatHeader || null],
@@ -58,7 +59,7 @@ export default class EegService extends GenericBiosignalService implements Biosi
         return commission.promise as Promise<SetupStudyResponse>
     }
 
-    async handleMessage (message: any) {
+    async handleMessage (message: WorkerResponse) {
         const data = message.data
         if (!data) {
             return false

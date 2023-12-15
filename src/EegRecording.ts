@@ -111,7 +111,7 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
                     this._service.requestMemory(totalMem).then(success => {
                         if (success) {
                             Log.debug(`Memory allocation complete.`, SCOPE)
-                            this.setupCache().then((success) => {
+                            this.setupCache().then((/*success*/) => {
                                 Log.debug(`Buffer setup complete.`, SCOPE)
                                 this.startCachingSignals()
                             })
@@ -163,7 +163,7 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
     get videos () {
         return this._videos
     }
-    set videos (videos: any[]) {
+    set videos (videos: EegVideo[]) {
         this._videos = videos
     }
 
@@ -189,9 +189,6 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
         if (config) {
             // Use config to add a montage.
             montage.mapChannels(config)
-        } else if (!this._montages.length) {
-            // Add first montage as an 'as recorded' montage.
-            montage.mapChannels(null)
         } else {
             // Use default configuration.
             montage.mapChannels()

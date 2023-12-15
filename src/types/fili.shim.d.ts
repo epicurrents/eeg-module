@@ -6,6 +6,6 @@
  */
 
 declare module 'fili' {
-    const Fili: any
+    const Fili: unknown
     export default Fili
 }

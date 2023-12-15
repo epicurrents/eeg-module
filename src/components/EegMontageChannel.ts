@@ -8,7 +8,7 @@
 import { GenericBiosignalChannel } from "@epicurrents/core"
 import { type MontageChannel, type BiosignalChannel } from "@epicurrents/core/dist/types"
 
-const SCOPE = 'EegMontageChannel'
+//const SCOPE = 'EegMontageChannel'
 
 export default class EegMontageChannel extends GenericBiosignalChannel implements MontageChannel {
 

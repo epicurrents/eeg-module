@@ -9,6 +9,7 @@ import { GenericBiosignalMontage } from "@epicurrents/core"
 import { SETTINGS } from "@epicurrents/core/dist/config"
 import { mapMontageChannels } from "@epicurrents/core/dist/util"
 import {
+    ConfigMapChannels,
     type BiosignalMontage,
     type BiosignalMontageTemplate,
     type BiosignalSetup,
@@ -81,12 +82,16 @@ export default class EegMontage extends GenericBiosignalMontage implements Biosi
     //                   METHODS                     //
     ///////////////////////////////////////////////////
 
-    mapChannels (config?: any) {
-        const channelConfig = Object.assign({}, SETTINGS.modules.eeg, config ? config : this._config)
+    mapChannels (config?: ConfigMapChannels) {
+        const channelConfig = Object.assign(
+                                {},
+                                SETTINGS.modules.eeg,
+                                config ? config : this._config
+                              ) as ConfigMapChannels
         const chanProps = mapMontageChannels(this._setup, channelConfig)
-        this.channels = chanProps.map((chan: any) => {
+        this.channels = chanProps.map((chan) => {
             // We need to copy some properties to optional params.
-            chan.optionalParams = {
+            const optionalParams = {
                 amplification: chan.amplification,
                 displayPolarity: chan.displayPolarity,
                 laterality: chan.laterality,
@@ -104,7 +109,7 @@ export default class EegMontage extends GenericBiosignalMontage implements Biosi
                 chan.samplingRate,
                 chan.unit,
                 chan.visible,
-                chan.optionalParams
+                optionalParams
             )
         })
     }
