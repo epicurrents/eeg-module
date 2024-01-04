@@ -7,10 +7,10 @@
  * @license    Apache-2.0
  */
 
-import { BiosignalChannel, BiosignalHeaderSignal } from "@epicurrents/core/dist/types"
-import { EegRecording } from "../src"
-import { EegChannel } from "./components/EegChannel"
-import { GenericBiosignalHeaders } from "@epicurrents/core"
+import { BiosignalChannel, BiosignalHeaderSignal } from '@epicurrents/core/dist/types'
+import { EegRecording } from '../src'
+import { EegChannel } from './components/EegChannel'
+import { GenericBiosignalHeaders } from '@epicurrents/core'
 
 /*
  * Mocks.

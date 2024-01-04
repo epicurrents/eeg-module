@@ -10,7 +10,7 @@ import {
     type CommonBiosignalSettings,
     type PlotLineStyles,
     type SettingsColor
-} from "@epicurrents/core/dist/types"
+} from '@epicurrents/core/dist/types'
 
 export type EegModuleSettings = BaseModuleSettings & CommonBiosignalSettings & {
     continuousBrowseDelay: number

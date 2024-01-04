@@ -5,7 +5,7 @@
  * @license    Apache-2.0
  */
 
-import { type VideoAttachment } from "@epicurrents/core/dist/types"
+import { type VideoAttachment } from '@epicurrents/core/dist/types'
 
 export default class EegVideo implements VideoAttachment {
     private _endTime: number

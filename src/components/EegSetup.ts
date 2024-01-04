@@ -5,10 +5,10 @@
  * @license    Apache-2.0
  */
 
-import { GenericBiosignalSetup } from "@epicurrents/core"
-import { type BiosignalChannel, type ConfigBiosignalSetup } from "@epicurrents/core/dist/types"
-import config from "../config/defaults.json"
-import Log from "scoped-ts-log"
+import { GenericBiosignalSetup } from '@epicurrents/core'
+import { type BiosignalChannel, type ConfigBiosignalSetup } from '@epicurrents/core/dist/types'
+import config from '../config/defaults.json'
+import Log from 'scoped-ts-log'
 
 const DEFAULTS = {} as { [setup: string]: ConfigBiosignalSetup }
 for (const name in config) {

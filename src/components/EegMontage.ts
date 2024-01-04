@@ -5,9 +5,9 @@
  * @license    Apache-2.0
  */
 
-import { GenericBiosignalMontage } from "@epicurrents/core"
-import { SETTINGS } from "@epicurrents/core/dist/config"
-import { mapMontageChannels } from "@epicurrents/core/dist/util"
+import { GenericBiosignalMontage } from '@epicurrents/core'
+import { SETTINGS } from '@epicurrents/core/dist/config'
+import { mapMontageChannels } from '@epicurrents/core/dist/util'
 import {
     ConfigMapChannels,
     type BiosignalMontage,
@@ -15,11 +15,11 @@ import {
     type BiosignalSetup,
     type ConfigBiosignalMontage,
     type MemoryManager,
-} from "@epicurrents/core/dist/types"
-import EegMontageChannel from "./EegMontageChannel"
-import { type EegResource } from "../types"
-import config from "../config/defaults.json"
-import Log from "scoped-ts-log"
+} from '@epicurrents/core/dist/types'
+import EegMontageChannel from './EegMontageChannel'
+import { type EegResource } from '../types'
+import config from '../config/defaults.json'
+import Log from 'scoped-ts-log'
 
 const SCOPE = 'EegMontage'
 

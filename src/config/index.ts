@@ -5,7 +5,7 @@
  * @license    Apache-2.0
  */
 
-import { type BiosignalAnnotation, type SettingsColor } from "@epicurrents/core/dist/types"
+import { type BiosignalAnnotation, type SettingsColor } from '@epicurrents/core/dist/types'
 
 const EegSettings = {
     _settingsMenu: {

@@ -5,8 +5,8 @@
  * @license    Apache-2.0
  */
 
-import { GenericBiosignalChannel } from "@epicurrents/core"
-import { type MontageChannel, type BiosignalChannel } from "@epicurrents/core/dist/types"
+import { GenericBiosignalChannel } from '@epicurrents/core'
+import { type MontageChannel, type BiosignalChannel } from '@epicurrents/core/dist/types'
 
 //const SCOPE = 'EegMontageChannel'
 

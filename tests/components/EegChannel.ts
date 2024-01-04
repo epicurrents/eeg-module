@@ -2,7 +2,7 @@
  * Biosignal channel mock.
  */
 
-import { GenericBiosignalChannel } from "@epicurrents/core"
+import { GenericBiosignalChannel } from '@epicurrents/core'
 
 export class EegChannel extends GenericBiosignalChannel {
 

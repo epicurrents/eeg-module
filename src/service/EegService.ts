@@ -5,8 +5,8 @@
  * @license    Apache-2.0
  */
 
-import { INDEX_NOT_ASSIGNED } from "@epicurrents/core/dist/util"
-import { GenericBiosignalService } from "@epicurrents/core"
+import { INDEX_NOT_ASSIGNED } from '@epicurrents/core/dist/util'
+import { GenericBiosignalService } from '@epicurrents/core'
 import {
     type BiosignalDataService,
     type BiosignalHeaderRecord,
@@ -16,7 +16,7 @@ import {
     type SignalCacheResponse,
     type StudyContext,
     type WorkerResponse,
-} from "@epicurrents/core/dist/types"
+} from '@epicurrents/core/dist/types'
 
 //const SCOPE = "EegService"
 

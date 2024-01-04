@@ -5,7 +5,7 @@
  * @license    Apache-2.0
  */
 
-import { BiosignalStudyLoader, GenericBiosignalHeaders } from "@epicurrents/core"
+import { BiosignalStudyLoader, GenericBiosignalHeaders } from '@epicurrents/core'
 import {
     type ConfigStudyContext,
     type BiosignalChannel,
@@ -15,11 +15,11 @@ import {
     type SafeObject,
     type StudyContext,
     type VideoAttachment,
-} from "@epicurrents/core/dist/types"
-import EegRecording from "../EegRecording"
-import { type EegResource, type EegStudyProperties } from "../types"
-//import EegRecording from "../EegRecording"
-import Log from "scoped-ts-log"
+} from '@epicurrents/core/dist/types'
+import EegRecording from '../EegRecording'
+import { type EegResource, type EegStudyProperties } from '../types'
+//import EegRecording from '../EegRecording'
+import Log from 'scoped-ts-log'
 
 const SCOPE = 'EegStudyLoader'
 
