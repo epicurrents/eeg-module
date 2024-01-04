@@ -1,9 +1,9 @@
 import {
-    BiosignalHeaderSignal,
-    BiosignalResource,
-    VideoAttachment,
+    type BiosignalHeaderSignal,
+    type BiosignalResource,
+    type VideoAttachment,
 } from "@epicurrents/core/dist/types"
-import { BiosignalStudyProperties } from "@epicurrents/core/dist/types/biosignal"
+import { type BiosignalStudyProperties } from "@epicurrents/core/dist/types/biosignal"
 
 /**
  * Properties expected of an EEG file header signal.
@@ -26,4 +26,10 @@ export interface EegResource extends BiosignalResource {
 
 export type EegStudyProperties = BiosignalStudyProperties & {
     videos?: VideoAttachment[]
+}
+
+import { type EegModuleSettings } from './config'
+
+export {
+    EegModuleSettings,
 }
