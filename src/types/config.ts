@@ -64,6 +64,9 @@ export type EegModuleSettings = BaseModuleSettings & CommonBiosignalSettings & {
         tickColor: SettingsColor
         viewBoxColor: SettingsColor
     }
+    tools: {
+        [name: string]: EegToolProperties | EegToolProperties[]
+    }
     trace: {
         color: {
             eeg: SettingsColor
@@ -74,10 +77,14 @@ export type EegModuleSettings = BaseModuleSettings & CommonBiosignalSettings & {
             emg: SettingsColor
             eog: SettingsColor
             res: SettingsColor
+            act: SettingsColor
             meta: SettingsColor
             default: SettingsColor
         }
         colorSides: boolean
+        highlight: {
+            color: SettingsColor
+        }
         selections: {
             color: SettingsColor
         }
@@ -88,4 +95,11 @@ export type EegModuleSettings = BaseModuleSettings & CommonBiosignalSettings & {
             eog: number
         }
     }
+}
+export type EegToolProperties = {
+    color: SettingsColor
+    dasharray?: number[]
+    radius?: number
+    style?: string
+    width?: number
 }
