@@ -6,8 +6,9 @@
  */
 
 import { type BiosignalAnnotation, type SettingsColor } from '@epicurrents/core/dist/types'
+import { EegModuleSettings } from '../types'
 
-const EegSettings = {
+const EegSettings: EegModuleSettings = {
     _settingsMenu: {
         description: 'Electroencephalography settings.',
         fields: [
