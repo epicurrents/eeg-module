@@ -1,6 +1,6 @@
 {
   "name": "@epicurrents/eeg-module",
-  "version": "0.0.1-5",
+  "version": "0.0.1-6",
   "description": "EpiCurrents EEG module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
