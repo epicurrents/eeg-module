@@ -7,15 +7,12 @@
 
 import { GenericBiosignalSetup } from '@epicurrents/core'
 import { type BiosignalChannel, type ConfigBiosignalSetup } from '@epicurrents/core/dist/types'
-import config from '../config/defaults.json'
 import Log from 'scoped-ts-log'
 
+// Build default setups.
 const DEFAULTS = {} as { [setup: string]: ConfigBiosignalSetup }
-for (const name in config) {
-    DEFAULTS[name] = (
-        await import(`../config/defaults/${name}/setup.json`)
-    ).default
-}
+import DEFAULT_1020 from '../config/defaults/10-20/setup.json'
+DEFAULTS['10-20'] = DEFAULT_1020 as ConfigBiosignalSetup
 
 const SCOPE = 'EegSetup'
 

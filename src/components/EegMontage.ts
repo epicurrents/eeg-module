@@ -18,21 +18,23 @@ import {
 } from '@epicurrents/core/dist/types'
 import EegMontageChannel from './EegMontageChannel'
 import { type EegResource } from '../types'
-import config from '../config/defaults.json'
 import Log from 'scoped-ts-log'
 
 const SCOPE = 'EegMontage'
 
 const DEFAULTS = {} as { [std: string]: { [montage: string]: BiosignalMontageTemplate } }
 // Build default montages.
-for (const [name, setup] of Object.entries(config)) {
-    DEFAULTS[name] = {}
-    for (const [montage, path] of Object.entries(setup.montages)) {
-        DEFAULTS[name][montage] = (
-            await import(`../config/defaults/${path}`)
-        ).default
-    }
-}
+DEFAULTS['10-20'] = {}
+import DEFAULT_1020_AVG from '../config/defaults/10-20/montages/avg.json'
+DEFAULTS['10-20']['avg'] = DEFAULT_1020_AVG as BiosignalMontageTemplate
+import DEFAULT_1020_DBN from '../config/defaults/10-20/montages/dbn.json'
+DEFAULTS['10-20']['dbn'] = DEFAULT_1020_DBN as BiosignalMontageTemplate
+import DEFAULT_1020_LPL from '../config/defaults/10-20/montages/lpl.json'
+DEFAULTS['10-20']['lpl'] = DEFAULT_1020_LPL as BiosignalMontageTemplate
+import DEFAULT_1020_REC from '../config/defaults/10-20/montages/rec.json'
+DEFAULTS['10-20']['rec'] = DEFAULT_1020_REC as BiosignalMontageTemplate
+import DEFAULT_1020_TRV from '../config/defaults/10-20/montages/trv.json'
+DEFAULTS['10-20']['trv'] = DEFAULT_1020_TRV as BiosignalMontageTemplate
 
 export default class EegMontage extends GenericBiosignalMontage implements BiosignalMontage {
 
