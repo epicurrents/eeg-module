@@ -31,12 +31,13 @@
     "README.md"
   ],
   "scripts": {
-    "build": "node node_modules/typescript/bin/tsc && node node_modules/tsconfig-replace-paths/dist/commonjs --project tsconfig.json",
+    "build": "npm run build:umd && npm run build:tsc",
+    "build:tsc": "node node_modules/typescript/bin/tsc && node node_modules/tsconfig-replace-paths/dist/commonjs --project tsconfig.json",
     "build:umd": "node node_modules/webpack/bin/webpack.js --progress --config webpack.config.js",
     "dev": "node node_modules/webpack/bin/webpack.js serve --progress --config webpack.dev.js",
     "lint": "npm run lint:src",
     "lint:src": "node node_modules/eslint/bin/eslint src",
-    "prepack": "npm run build && npm run build:umd",
+    "prepack": "npm run build",
     "release": "npm publish --access=public",
     "test": "npm run test:unit",
     "test:unit": "node --experimental-vm-modules node_modules/jest/bin/jest.js --coverage --verbose --no-cache --runInBand"
@@ -48,7 +49,7 @@
   "author": "Sampsa Lohi",
   "license": "Apache-2.0",
   "dependencies": {
-    "@epicurrents/core": "^0.0.2-alpha.50",
+    "@epicurrents/core": "^0.0.2-alpha.67",
     "asymmetric-io-mutex": "^0.6.8",
     "axios": "^1.6.2",
     "scoped-ts-log": "^1.1.0"
