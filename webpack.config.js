@@ -1,5 +1,8 @@
 const path = require('path')
 const TerserPlugin = require('terser-webpack-plugin')
+require('dotenv').config()
+
+const ASSET_PATH = process.env.ASSET_PATH || '/edf-file-loader/'
 
 module.exports = {
     mode: 'production',
@@ -23,7 +26,9 @@ module.exports = {
     },
     output: {
         path: path.resolve(__dirname, 'umd'),
-        library: "EegModule"
+        publicPath: ASSET_PATH,
+        library: 'EegModule',
+        libraryTarget: 'umd',
     },
     resolve: {
         extensions: ['.ts', '.js', '.json'],
