@@ -28,8 +28,9 @@ export type EegStudyProperties = BiosignalStudyProperties & {
     videos?: VideoAttachment[]
 }
 
-import { type EegModuleSettings } from './config'
+import { type EegModuleSettings, type EegToolProperties } from './config'
 
 export {
     EegModuleSettings,
+    EegToolProperties,
 }
