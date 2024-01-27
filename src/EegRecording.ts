@@ -111,7 +111,7 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
                     this._service.requestMemory(totalMem).then(success => {
                         if (success) {
                             Log.debug(`Memory allocation complete.`, SCOPE)
-                            this.setupCache().then((/*success*/) => {
+                            this.setupMutex().then((/*success*/) => {
                                 Log.debug(`Buffer setup complete.`, SCOPE)
                                 this.startCachingSignals()
                             })
@@ -285,8 +285,8 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
         Log.info(`All buffers released from ${this.name}`, SCOPE)
     }
 
-    async setupCache (): Promise<boolean> {
-        const success = await this._service.setupCache().then(async response => {
+    async setupMutex (): Promise<boolean> {
+        const success = await this._service.setupMutex().then(async response => {
             if (response) {
                 const EEG_SETTINGS = SETTINGS.modules.eeg as typeof EegSettings
                 Log.debug(`Cache for raw signal data initiated.`, SCOPE)

@@ -9,23 +9,12 @@ import {
     type BaseModuleSettings,
     type CommonBiosignalSettings,
     type PlotLineStyles,
-    type SettingsColor
 } from '@epicurrents/core/dist/types'
 
 export type EegModuleSettings = BaseModuleSettings & CommonBiosignalSettings & {
-    continuousBrowseDelay: number
-    continuousBrowseInterval: number
-    cursor: {
-        color: SettingsColor
-        width: number
-    }
     excludeActiveFromAvg: boolean
     fft: {
         frequencyBands: { name: string, symbol: string, upperLimit: number }[]
-    }
-    highlights: {
-        /** Display a fading collar before and after a highlight. */
-        showCollars: boolean
     }
     isoelLine: PlotLineStyles
     labelMatchers: {
@@ -53,53 +42,4 @@ export type EegModuleSettings = BaseModuleSettings & CommonBiosignalSettings & {
      * cause cycles to run at greater intervals when loading new signal data.
      */
     minNewSignalCacheCycleLength: number
-    navigator: {
-        annotationColor: SettingsColor
-        borderColor: SettingsColor
-        cachedColor: SettingsColor
-        gapColor: SettingsColor
-        loadedColor: SettingsColor
-        loadingColor: SettingsColor
-        theme: string
-        tickColor: SettingsColor
-        viewBoxColor: SettingsColor
-    }
-    tools: {
-        [name: string]: EegToolProperties | EegToolProperties[]
-    }
-    trace: {
-        color: {
-            eeg: SettingsColor
-                sin: SettingsColor
-                dex: SettingsColor
-                mid: SettingsColor
-            ekg: SettingsColor
-            emg: SettingsColor
-            eog: SettingsColor
-            res: SettingsColor
-            act: SettingsColor
-            meta: SettingsColor
-            default: SettingsColor
-        }
-        colorSides: boolean
-        highlight: {
-            color: SettingsColor
-        }
-        selections: {
-            color: SettingsColor
-        }
-        theme: string
-        width: {
-            eeg: number
-            ekg: number
-            eog: number
-        }
-    }
-}
-export type EegToolProperties = {
-    color: SettingsColor
-    dasharray?: number[]
-    radius?: number
-    style?: string
-    width?: number
 }

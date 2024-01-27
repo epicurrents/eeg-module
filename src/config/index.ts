@@ -264,12 +264,6 @@ const EegSettings: EegModuleSettings = {
         },
     },
     channelSpacing: 1,
-    continuousBrowseDelay: 500,
-    continuousBrowseInterval: 100,
-    cursor: {
-        color: [0.5, 0, 0, 0.4] as SettingsColor,
-        width: 3,
-    },
     defaultMontages: {
         '10-20': [
             ['rec', 'As recorded'],
@@ -309,9 +303,6 @@ const EegSettings: EegModuleSettings = {
         },
     },
     groupSpacing: 1.5,
-    highlights: {
-        showCollars: true,
-    },
     isoelLine: {
         show: false,
         color: [0.9, 0.9, 0.9, 1] as SettingsColor,
@@ -355,17 +346,6 @@ const EegSettings: EegModuleSettings = {
         cacheMax: 2,
         preCache: false,
     },
-    navigator: {
-        annotationColor: [0, 0, 1, 0.5] as SettingsColor,
-        borderColor: [0, 0, 0, 0.2] as SettingsColor,
-        cachedColor: [0, 0.75, 0, 0.5] as SettingsColor,
-        gapColor: [0, 0, 0, 0.1] as SettingsColor,
-        loadedColor: [0, 0.35, 0, 0.5] as SettingsColor,
-        loadingColor: [0.05, 0.20, 0.05, 0.5] as SettingsColor,
-        theme: 'default',
-        tickColor: [0, 0, 0, 0.2] as SettingsColor,
-        viewBoxColor: [1, 0.2, 0.2, 0.25] as SettingsColor,
-    },
     pageLength: 10,
     sensitivity: {
         uVperCm: {
@@ -385,87 +365,6 @@ const EegSettings: EegModuleSettings = {
     timebaseUnit: 'cmPerS',
     timeline: {
         labelSpacing: 2,
-    },
-    tools: {
-        cursorLine: {
-            color: [0.5, 0, 0, 0.4] as SettingsColor,
-            style: 'solid',
-            width: 2,
-        },
-        excludeArea: {
-            color: [0.5, 0.5, 0.5, 0.2] as SettingsColor,
-            style: 'solid',
-            width: 1,
-        },
-        guideLine: {
-            color: [0.5, 0.5, 0.5, 0.25] as SettingsColor,
-            style: 'solid',
-            width: 1,
-        },
-        guideLineSymbol: {
-            color: [0.5, 0.5, 0.5, 0.5] as SettingsColor,
-        },
-        highlightArea: {
-            color: [1, 1, 0.5, 0.5] as SettingsColor,
-        },
-        poiMarkerLine: {
-            color: [0.9, 0.7, 0.6, 1] as SettingsColor,
-            dasharray: [2, 1],
-            style: 'dashed',
-            width: 1,
-        },
-        poiMarkerCircle: {
-            color: [0.9, 0.7, 0.6, 1] as SettingsColor,
-            radius: 5,
-            style: 'solid',
-            width: 2,
-        },
-        signals: [
-            {
-                color: [0, 0.4, 0.9, 1] as SettingsColor,
-                style: 'solid',
-                width: 1,
-            },
-            {
-                color: [0.75, 0, 0.2, 1] as SettingsColor,
-                style: 'solid',
-                width: 1,
-            },
-        ],
-        signalBaseline: {
-            color: [0.9, 0.8, 0.8, 1] as SettingsColor,
-            dasharray: [8, 2],
-            style: 'dashed',
-            width: 1,
-        },
-    },
-    trace: {
-        color: {
-            eeg: [0, 0, 0, 1] as SettingsColor,
-                sin: [0.5, 0, 0, 1] as SettingsColor,
-                dex: [0, 0, 0.5, 1] as SettingsColor,
-                mid: [0, 0.5, 0, 1] as SettingsColor,
-            ekg: [0.75, 0, 0, 1] as SettingsColor,
-            emg: [0.3, 0, 0, 1] as SettingsColor,
-            eog: [0, 0, 0.75, 1] as SettingsColor,
-            res: [0, 0.8, 0, 1] as SettingsColor,
-            act: [0.1, 0.1, 0.1, 1] as SettingsColor,
-            meta: [0, 0, 0, 0] as SettingsColor, // Hide meta channel signal as failsafe
-            default: [0.2, 0.2, 0.2, 1] as SettingsColor,
-        },
-        colorSides: false,
-        highlight: {
-            color: [1, 0, 0, 0.2] as SettingsColor,
-        },
-        selections: {
-            color: [0, 0, 1, 0.075] as SettingsColor,
-        },
-        theme: 'default',
-        width: {
-            eeg: 1,
-            ekg: 1,
-            eog: 1,
-        },
     },
     yPadding: 1,
 }
