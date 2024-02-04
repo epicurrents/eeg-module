@@ -111,9 +111,12 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
                     this._service.requestMemory(totalMem).then(success => {
                         if (success) {
                             Log.debug(`Memory allocation complete.`, SCOPE)
-                            this.setupMutex().then((/*success*/) => {
-                                Log.debug(`Buffer setup complete.`, SCOPE)
-                                this.startCachingSignals()
+                            this.setupMutex().then((success) => {
+                                if (success) {
+                                    Log.debug(`Buffer setup complete.`, SCOPE)
+                                    this.setupMontages()
+                                    this.startCachingSignals()
+                                }
                             })
                         } else {
                             Log.error(`Memory allocation failed.`, SCOPE)
@@ -122,6 +125,9 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
                 } else if (!this.isActive) {
                     //this.releaseBuffers()
                 }
+            } else {
+                this.setupMontages()
+                this.startCachingSignals()
             }
         })
     }
@@ -176,16 +182,31 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
     }
 
     async addMontage (name: string, label: string, setup: EegSetup, config?: ConfigMapChannels) {
-        if (this._service.bufferRangeStart === -1) {
-            Log.error(`Cannot add a montage before buffer has been intialized.`, SCOPE)
+        const getMontage = async () => {
+            if (this._memoryManager) {
+                if (this._service.bufferRangeStart === -1) {
+                    Log.error(`Cannot add a montage before buffer has been intialized.`, SCOPE)
+                    return null
+                }
+                const montage = new EegMontage(
+                    name, this, setup,
+                    this._memoryManager,
+                    { label: label }
+                )
+                await montage.setupLoaderWithInputMutex(this._dataProps)
+                return montage
+            }
+            const montage = new EegMontage(
+                name, this, setup,
+                undefined,
+                { label: label }
+            )
+            return montage
+        }
+        const montage = await getMontage()
+        if (!montage) {
             return null
         }
-        const montage = new EegMontage(
-            name, this, setup,
-            this._memoryManager as MemoryManager,
-            { label: label }
-        )
-        await montage.setupLoaderWithInputMutex(this._dataProps)
         if (config) {
             // Use config to add a montage.
             montage.mapChannels(config)
@@ -285,33 +306,36 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
         Log.info(`All buffers released from ${this.name}`, SCOPE)
     }
 
+    async setupMontages () {
+        const EEG_SETTINGS = SETTINGS.modules.eeg as typeof EegSettings
+        for (const setup of this._setups) {
+            const montages = EEG_SETTINGS.defaultMontages[
+                setup.id.split(':')[1] as keyof typeof EEG_SETTINGS.defaultMontages
+            ]
+            for (const montage of montages) {
+                if (montage[0].indexOf(':') === -1) {
+                    const newMontage = await this.addMontage(`${setup.id}:${montage[0]}`, montage[1], setup)
+                    if (newMontage) {
+                        Log.debug(`Added montage ${montage[0]} for setup ${setup.id}.`, SCOPE)
+                    }
+                } else {
+                    const newMontage = await this.addMontage(`default:${montage[0]}`, montage[1], setup)
+                    if (newMontage) {
+                        Log.debug(`Added montage ${montage[1]} for setup default:${montage[0]}.`, SCOPE)
+                    }
+                }
+                if (this._recordMontage === null && this._montages.length) {
+                    this._recordMontage = this._montages[0]
+                }
+            }
+        }
+    }
+
     async setupMutex (): Promise<boolean> {
         const success = await this._service.setupMutex().then(async response => {
             if (response) {
-                const EEG_SETTINGS = SETTINGS.modules.eeg as typeof EegSettings
                 Log.debug(`Cache for raw signal data initiated.`, SCOPE)
                 this._dataProps = response
-                for (const setup of this._setups) {
-                    const montages = EEG_SETTINGS.defaultMontages[
-                        setup.id.split(':')[1] as keyof typeof EEG_SETTINGS.defaultMontages
-                    ]
-                    for (const montage of montages) {
-                        if (montage[0].indexOf(':') === -1) {
-                            const newMontage = await this.addMontage(`${setup.id}:${montage[0]}`, montage[1], setup)
-                            if (newMontage) {
-                                Log.debug(`Added montage ${montage[0]} for setup ${setup.id}.`, SCOPE)
-                            }
-                        } else {
-                            const newMontage = await this.addMontage(`default:${montage[0]}`, montage[1], setup)
-                            if (newMontage) {
-                                Log.debug(`Added montage ${montage[1]} for setup default:${montage[0]}.`, SCOPE)
-                            }
-                        }
-                        if (this._recordMontage === null && this._montages.length) {
-                            this._recordMontage = this._montages[0]
-                        }
-                    }
-                }
                 return true
             } else {
                 Log.error(`Cache initialization failed.`, SCOPE)

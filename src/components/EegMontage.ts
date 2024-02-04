@@ -9,11 +9,11 @@ import { GenericBiosignalMontage } from '@epicurrents/core'
 import { SETTINGS } from '@epicurrents/core/dist/config'
 import { mapMontageChannels } from '@epicurrents/core/dist/util'
 import {
-    ConfigMapChannels,
     type BiosignalMontage,
     type BiosignalMontageTemplate,
     type BiosignalSetup,
     type ConfigBiosignalMontage,
+    type ConfigMapChannels,
     type MemoryManager,
 } from '@epicurrents/core/dist/types'
 import EegMontageChannel from './EegMontageChannel'

@@ -61,22 +61,19 @@ export default class EegStudyLoader extends BiosignalStudyLoader {
             Log.error(`Study loader doesn't have a file type loader.`, SCOPE)
             return null
         }
-        if (this._memoryManager) {
-            const recording = new EegRecording(
-                this._study.name,
-                meta.channels,
-                meta.header,
-                worker,
-                this._memoryManager,
-                { formatHeader: meta.formatHeader }
-            )
-            recording.source = this._study
-            this._resources.push(recording)
-            // Clear the loaded study.
-            this._study = null
-            return recording
-        }
-        return null
+        const recording = new EegRecording(
+            this._study.name,
+            meta.channels,
+            meta.header,
+            worker,
+            this._memoryManager || undefined,
+            { formatHeader: meta.formatHeader }
+        )
+        recording.source = this._study
+        this._resources.push(recording)
+        // Clear the loaded study.
+        this._study = null
+        return recording
     }
 
     public async loadFromDirectory (dir: FileSystemItem, config?: ConfigStudyLoader): Promise<StudyContext|null> {
