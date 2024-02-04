@@ -25,6 +25,7 @@ import {
     type BiosignalMontage,
     type BiosignalMontageService,
     type MemoryManager,
+    type SignalDataCache,
     type StudyContext,
 } from '@epicurrents/core/dist/types'
 import EegService from './service/EegService'
@@ -37,6 +38,7 @@ import Log from 'scoped-ts-log'
 const SCOPE = "EegRecording"
 export default class EegRecording extends GenericBiosignalResource implements EegResource {
     protected _activeMontage: BiosignalMontage | null = null
+    protected _cacheProps: SignalDataCache | null = null
     protected _dataProps: MutexExportProperties | null = null
     /** The display view start can be optionally updated here after signals are processed and actually displayed. */
     protected _displayViewStart: number = 0
@@ -126,8 +128,12 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
                     //this.releaseBuffers()
                 }
             } else {
-                this.setupMontages()
-                this.startCachingSignals()
+                this.setupCache().then(result => {
+                    if (result) {
+                        this.setupMontages()
+                        this.startCachingSignals()
+                    }
+                })
             }
         })
     }
@@ -304,6 +310,14 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
         this._annotations = []
         this._dataGaps.clear()
         Log.info(`All buffers released from ${this.name}`, SCOPE)
+    }
+
+    async setupCache () {
+        const result = await this._service.setupCache()
+        if (result) {
+            this._cacheProps = result.cacheProperties as SignalDataCache
+        }
+        return this._cacheProps
     }
 
     async setupMontages () {
