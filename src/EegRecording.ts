@@ -207,6 +207,9 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
                 undefined,
                 { label: label }
             )
+            if (this._cacheProps) {
+                montage.setupLoaderWithCache(this._cacheProps)
+            }
             return montage
         }
         const montage = await getMontage()
@@ -315,7 +318,7 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
     async setupCache () {
         const result = await this._service.setupCache()
         if (result) {
-            this._cacheProps = result.cacheProperties as SignalDataCache
+            this._cacheProps = result as SignalDataCache
         }
         return this._cacheProps
     }
