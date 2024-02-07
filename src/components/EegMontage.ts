@@ -46,9 +46,6 @@ export default class EegMontage extends GenericBiosignalMontage implements Biosi
         config?: ConfigBiosignalMontage,
     ) {
         super(name, recording, setup, manager, config)
-        if (config?.skipSetup) {
-            return
-        }
         // Save default config.
         if (name.startsWith('default:')) {
             const confParams = name.split(':')
@@ -60,22 +57,7 @@ export default class EegMontage extends GenericBiosignalMontage implements Biosi
             ) {
                 Log.error(`Given default configuration ${name} is not supported.`, SCOPE)
             } else {
-                this._config = DEFAULTS[confParams[1]][confParams[2]]
-                const defaultConfig = this._config as {
-                    reference?: {
-                        common: boolean
-                        description: string
-                        label: string
-                        type: string
-                    }
-                }
-                // Save reference information.
-                this._reference = defaultConfig.reference?.common ? {
-                    common: true,
-                    description: defaultConfig.reference?.description || 'unknown',
-                    label: defaultConfig.reference?.label || '',
-                    type: defaultConfig.reference?.type || 'unknown',
-                } : null
+                this.setupChannels(DEFAULTS[confParams[1]][confParams[2]])
             }
         }
     }
