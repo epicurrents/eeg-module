@@ -66,10 +66,6 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
         const EEG_SETTINGS = SETTINGS.modules.eeg as typeof EegSettings
         super(
             name,
-            config?.sensitivity ||
-                EEG_SETTINGS.sensitivity[
-                    EEG_SETTINGS.sensitivityUnit as keyof typeof EEG_SETTINGS.sensitivity
-                ].default,
             config?.type || 'eeg'
         )
         this._headers = headers

@@ -8,7 +8,6 @@
 import {
     type BaseModuleSettings,
     type CommonBiosignalSettings,
-    type PlotLineStyles,
 } from '@epicurrents/core/dist/types'
 
 export type EegModuleSettings = BaseModuleSettings & CommonBiosignalSettings & {
@@ -16,7 +15,6 @@ export type EegModuleSettings = BaseModuleSettings & CommonBiosignalSettings & {
     fft: {
         frequencyBands: { name: string, symbol: string, upperLimit: number }[]
     }
-    isoelLine: PlotLineStyles
     labelMatchers: {
         /** All possible signal labels that should be classified as EEG. */
         eeg: string[]
