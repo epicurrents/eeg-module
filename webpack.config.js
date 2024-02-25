@@ -2,7 +2,7 @@ const path = require('path')
 const TerserPlugin = require('terser-webpack-plugin')
 require('dotenv').config()
 
-const ASSET_PATH = process.env.ASSET_PATH || '/edf-file-loader/'
+const ASSET_PATH = process.env.ASSET_PATH || '/vendor/eeg-module/'
 
 module.exports = {
     mode: 'production',
