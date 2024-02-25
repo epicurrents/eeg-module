@@ -1,6 +1,6 @@
 /**
  * EpiCurrents EEG signal service.
- * @package    @epicurrents/eeg-module
+ * @package    epicurrents/eeg-module
  * @copyright  2023 Sampsa Lohi
  * @license    Apache-2.0
  */
