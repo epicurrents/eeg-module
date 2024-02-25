@@ -10,7 +10,7 @@ import {
     type ConfigStudyContext,
     type BiosignalChannel,
     type ConfigStudyLoader,
-    type FileFormatLoader,
+    type FileFormatReader,
     type FileSystemItem,
     type SafeObject,
     type StudyContext,
@@ -25,7 +25,7 @@ const SCOPE = 'EegStudyLoader'
 
 export default class EegStudyLoader extends BiosignalStudyLoader {
 
-    constructor (name: string, contexts: string[], types: string[], loader: FileFormatLoader) {
+    constructor (name: string, contexts: string[], types: string[], loader: FileFormatReader) {
         super(name, contexts, types, loader)
     }
 
