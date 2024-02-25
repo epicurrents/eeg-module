@@ -52,7 +52,7 @@ export default class EegStudyLoader extends BiosignalStudyLoader {
             SCOPE)
             return null
         }
-        const worker = this._fileLoader?.getFileTypeWorker()
+        const worker = this._fileReader?.getFileTypeWorker()
         if (!worker) {
             Log.error(`Study loader does not have a file worker.`, SCOPE)
             return null
@@ -106,6 +106,7 @@ export default class EegStudyLoader extends BiosignalStudyLoader {
         if (study.files[0] && study.files[0].type === 'sig') {
             study.files[0].type = `eeg`
         }
+        console.log(study)
         const meta = study.meta as EegStudyProperties
         if (meta.header.signals) {
             // Classify the channels.
