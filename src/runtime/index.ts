@@ -5,10 +5,8 @@
  * @license    Apache-2.0
  */
 
-import { SETTINGS } from '@epicurrents/core'
 import { logInvalidMutation } from '@epicurrents/core/dist/runtime'
 import {
-    type AppSettings,
     type DataResource,
     type RuntimeResourceModule,
     type SafeObject,
@@ -25,7 +23,6 @@ const EEG: SafeObject & RuntimeResourceModule = {
         full: 'Electroencephalography',
         short: 'EEG',
     },
-    SETTINGS: SETTINGS,
     setPropertyValue (property: string, value: unknown, resource?: DataResource, state?: StateManager) {
         // EEG-specific property mutations
         const activeRes = resource
@@ -81,9 +78,6 @@ const EEG: SafeObject & RuntimeResourceModule = {
                 activeRes.sensitivity = value
             }
         }
-    },
-    setSettings (settings: AppSettings) {
-        EEG.SETTINGS = settings
     },
 }
 export default EEG
