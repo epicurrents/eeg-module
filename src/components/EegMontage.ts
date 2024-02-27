@@ -6,7 +6,6 @@
  */
 
 import { GenericBiosignalMontage } from '@epicurrents/core'
-import { SETTINGS } from '@epicurrents/core/dist/config'
 import { mapMontageChannels } from '@epicurrents/core/dist/util'
 import {
     type BiosignalMontage,
@@ -67,9 +66,12 @@ export default class EegMontage extends GenericBiosignalMontage implements Biosi
     ///////////////////////////////////////////////////
 
     mapChannels (config?: ConfigMapChannels) {
+        if (!window.__EPICURRENTS_APPS__[0]) {
+            Log.error(`Reference to main application was not found!`, SCOPE)
+        }
         const channelConfig = Object.assign(
                                 {},
-                                SETTINGS.modules.eeg,
+                                window.__EPICURRENTS_APPS__[0].state.SETTINGS.modules.eeg,
                                 config ? config : this._config
                               ) as ConfigMapChannels
         const chanProps = mapMontageChannels(this._setup, channelConfig)
