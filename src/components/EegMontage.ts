@@ -66,12 +66,13 @@ export default class EegMontage extends GenericBiosignalMontage implements Biosi
     ///////////////////////////////////////////////////
 
     mapChannels (config?: ConfigMapChannels) {
-        if (!window.__EPICURRENTS_APPS__[0]) {
+        if (!window.__EPICURRENTS_RUNTIME__) {
             Log.error(`Reference to main application was not found!`, SCOPE)
+            return
         }
         const channelConfig = Object.assign(
                                 {},
-                                window.__EPICURRENTS_APPS__[0].state.SETTINGS.modules.eeg,
+                                window.__EPICURRENTS_RUNTIME__.SETTINGS.modules.eeg,
                                 config ? config : this._config
                               ) as ConfigMapChannels
         const chanProps = mapMontageChannels(this._setup, channelConfig)

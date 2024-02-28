@@ -63,10 +63,10 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
         loaderManager?: MemoryManager,
         config = {} as BiosignalConfig
     ) {
-        if (!window.__EPICURRENTS_APPS__[0]) {
-            Log.error(`Reference to main application was not found!`, SCOPE)
+        if (!window.__EPICURRENTS_RUNTIME__) {
+            Log.error(`Reference to main runtime was not found!`, SCOPE)
         }
-        const EEG_SETTINGS = window.__EPICURRENTS_APPS__[0]?.state.SETTINGS.modules.eeg as typeof EegSettings
+        const EEG_SETTINGS = window.__EPICURRENTS_RUNTIME__.SETTINGS.modules.eeg as typeof EegSettings
         super(
             name,
             config?.type || 'eeg'
@@ -140,10 +140,10 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
         return super.annotations
     }
     set annotations (annotations: BiosignalAnnotation[]) {
-        if (!window.__EPICURRENTS_APPS__[0]) {
+        if (!window.__EPICURRENTS_RUNTIME__) {
             Log.error(`Reference to main application was not found!`, SCOPE)
         }
-        const EEG_SETTINGS = window.__EPICURRENTS_APPS__[0].state.SETTINGS.modules.eeg as typeof EegSettings
+        const EEG_SETTINGS = window.__EPICURRENTS_RUNTIME__.SETTINGS.modules.eeg as typeof EegSettings
         annotation_loop:
         for (let i=0; i<annotations.length; i++) {
             const anno = annotations[i]
@@ -326,10 +326,10 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
     }
 
     async setupMontages () {
-        if (!window.__EPICURRENTS_APPS__[0]) {
+        if (!window.__EPICURRENTS_RUNTIME__) {
             Log.error(`Reference to main application was not found!`, SCOPE)
         }
-        const EEG_SETTINGS = window.__EPICURRENTS_APPS__[0].state.SETTINGS.modules.eeg as typeof EegSettings
+        const EEG_SETTINGS = window.__EPICURRENTS_RUNTIME__.SETTINGS.modules.eeg as typeof EegSettings
         for (const setup of this._setups) {
             const montages = EEG_SETTINGS.defaultMontages[
                 setup.id.split(':')[1] as keyof typeof EEG_SETTINGS.defaultMontages
