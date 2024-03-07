@@ -26,14 +26,12 @@ const EegSettings: EegModuleSettings = {
         '10-20',
     ],
     excludeActiveFromAvg: false,
-    fft: {
-        frequencyBands: [
-            { name: 'delta', symbol: 'δ', upperLimit: 4 },
-            { name: 'theta', symbol: 'θ', upperLimit: 8 },
-            { name: 'alpha', symbol: 'α', upperLimit: 13 },
-            { name: 'beta', symbol: 'β', upperLimit: 30 },
-        ],
-    },
+    frequencyBands: [
+        { name: 'delta', symbol: 'δ', upperLimit: 4 },
+        { name: 'theta', symbol: 'θ', upperLimit: 8 },
+        { name: 'alpha', symbol: 'α', upperLimit: 13 },
+        { name: 'beta', symbol: 'β', upperLimit: 30 },
+    ],
     filterPaddingSeconds: 10,
     filters: {
         highpass: {
