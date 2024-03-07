@@ -12,9 +12,7 @@ import {
 
 export type EegModuleSettings = BaseModuleSettings & CommonBiosignalSettings & {
     excludeActiveFromAvg: boolean
-    fft: {
-        frequencyBands: { name: string, symbol: string, upperLimit: number }[]
-    }
+    frequencyBands: { name: string, symbol: string, upperLimit: number }[]
     labelMatchers: {
         /** All possible signal labels that should be classified as EEG. */
         eeg: string[]
