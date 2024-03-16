@@ -24,12 +24,7 @@ export default class EegService extends GenericBiosignalService implements Biosi
     /** Resolved or rejected based on the success of data loading. */
     protected _getSignals: Promise<SignalCacheResponse> | null = null
     protected _signalBufferStart = INDEX_NOT_ASSIGNED
-    /** Set to true when the worker is done setting up. */
-    protected _workerReady = false
 
-    get isReady () {
-        return super.isReady && this._workerReady
-    }
     get signalBufferStart () {
         return this._signalBufferStart
     }
@@ -45,6 +40,14 @@ export default class EegService extends GenericBiosignalService implements Biosi
         this._worker?.addEventListener('message', this.handleMessage.bind(this))
     }
 
+    async handleMessage (message: WorkerResponse) {
+        const data = message.data
+        if (!data) {
+            return false
+        }
+        return (await super.handleMessage(message))
+    }
+
     async prepareWorker (header: BiosignalHeaderRecord, study: StudyContext, formatHeader?: object) {
         // Find the data file; there should only be one.
         const fileUrl = study.files.filter(f => f.type === 'eeg' && f.role === 'data').map(file => file.url)[0]
@@ -57,13 +60,5 @@ export default class EegService extends GenericBiosignalService implements Biosi
             ])
         )
         return commission.promise as Promise<SetupStudyResponse>
-    }
-
-    async handleMessage (message: WorkerResponse) {
-        const data = message.data
-        if (!data) {
-            return false
-        }
-        return (await super.handleMessage(message))
     }
 }

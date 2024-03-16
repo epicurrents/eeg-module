@@ -99,9 +99,9 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
         }
         // Listen to is-active changes.
         this.addPropertyUpdateHandler('is-active', async () => {
-            if (this._memoryManager) {
-                // Complete loader setup if not already done.
-                if (this.isActive && !this._service.isReady) {
+            // Complete loader setup if not already done.
+            if (this.isActive && !this._service.isReady) {
+                if (this._memoryManager) {
                     // Calculate needed memory to load the entire recording.
                     let totalMem = 4 // For lock field.
                     const dataFieldsLen = BiosignalMutex.SIGNAL_DATA_POS
@@ -123,16 +123,16 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
                             Log.error(`Memory allocation failed.`, SCOPE)
                         }
                     })
-                } else if (!this.isActive) {
-                    //this.releaseBuffers()
+                } else {
+                    this.setupCache().then(result => {
+                        if (result) {
+                            this.setupMontages()
+                            this.startCachingSignals()
+                        }
+                    })
                 }
-            } else {
-                this.setupCache().then(result => {
-                    if (result) {
-                        this.setupMontages()
-                        this.startCachingSignals()
-                    }
-                })
+            } else if (!this.isActive) {
+                //this.releaseBuffers()
             }
         })
     }
