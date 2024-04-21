@@ -160,7 +160,7 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
                 if (anno.label.match(patRegExp)) {
                     anno.annotator = replaceProps.annotator || anno.annotator
                     anno.channels = replaceProps.channels
-                    anno.id = replaceProps.id
+                    anno.class = replaceProps.class
                     anno.label = anno.label.replace(patRegExp, replaceProps.label)
                     anno.priority = replaceProps.priority
                     anno.text = replaceProps.text
