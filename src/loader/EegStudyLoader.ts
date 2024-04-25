@@ -48,7 +48,7 @@ export default class EegStudyLoader extends BiosignalStudyLoader {
         }
         if (!this._study.name || !meta || !meta.channels || !meta.header) {
             Log.error(
-                `Cannot construct an EEG resoruce from given study context; it is missing required properties.`,
+                `Cannot construct an EEG resource from given study context; it is missing required properties.`,
             SCOPE)
             return null
         }
@@ -69,6 +69,7 @@ export default class EegStudyLoader extends BiosignalStudyLoader {
             this._memoryManager || undefined,
             { formatHeader: meta.formatHeader }
         )
+        recording.state = 'loaded'
         recording.source = this._study
         this._resources.push(recording)
         // Clear the loaded study.
@@ -106,7 +107,6 @@ export default class EegStudyLoader extends BiosignalStudyLoader {
         if (study.files[0] && study.files[0].type === 'sig') {
             study.files[0].type = `eeg`
         }
-        console.log(study)
         const meta = study.meta as EegStudyProperties
         if (meta.header.signals) {
             // Classify the channels.

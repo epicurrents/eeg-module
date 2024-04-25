@@ -260,7 +260,13 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
 
     getMainProperties () {
         const props = super.getMainProperties()
-        if (this.isPrepared) {
+        if (this.state === 'added') {
+            props.set('Waiting to load...', null)
+        } else if (this.state === 'loading') {
+            props.set('Loading metadata...', null)
+        } else if (this.state === 'loaded') {
+            props.set('Initializing...', null)
+        } else if (this.state === 'ready') {
             props.set(
                 this._channels.length.toString(),
                 {
@@ -291,12 +297,15 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
         ).then(async response => {
             if (response) {
                 this.totalDuration = response
-                this.isPrepared = true
+                this.state = 'ready'
                 return true
             }
+            // There was an error when preparing the resource.
+            this.state = 'error'
             return false
         }).catch(e => {
             Log.error(`Failed to prepare a worker for the EEG recording.`, SCOPE, e)
+            this.state = 'error'
             return false
         })
         // Load possible videos
