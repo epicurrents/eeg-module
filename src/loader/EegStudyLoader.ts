@@ -5,7 +5,7 @@
  * @license    Apache-2.0
  */
 
-import { BiosignalStudyLoader, GenericBiosignalHeaders } from '@epicurrents/core'
+import { BiosignalStudyLoader, GenericBiosignalHeader } from '@epicurrents/core'
 import {
     type ConfigStudyContext,
     type BiosignalChannel,
@@ -44,7 +44,7 @@ export default class EegStudyLoader extends BiosignalStudyLoader {
         const meta = this._study.meta as {
             channels?: BiosignalChannel[]
             formatHeader?: SafeObject
-            header?: GenericBiosignalHeaders
+            header?: GenericBiosignalHeader
         }
         if (!this._study.name || !meta || !meta.channels || !meta.header) {
             Log.error(

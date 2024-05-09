@@ -7,7 +7,7 @@
 
 import {
     BiosignalMutex,
-    GenericBiosignalHeaders,
+    GenericBiosignalHeader,
     GenericBiosignalResource,
 } from '@epicurrents/core'
 import {
@@ -16,6 +16,7 @@ import {
     timePartsToShortString,
 } from '@epicurrents/core/dist/util'
 import {
+    type AnnotationTemplate,
     type ConfigBiosignalSetup,
     type ConfigMapChannels,
     type BiosignalAnnotation,
@@ -27,7 +28,7 @@ import {
     type SignalDataCache,
     type StudyContext,
 } from '@epicurrents/core/dist/types'
-import runtime from '#runtime'
+import EegAnnotation from './components/EegAnnotation'
 import EegService from './service/EegService'
 import EegSettings from './config'
 import { EegMontage, EegSetup, EegVideo } from './components'
@@ -44,7 +45,7 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
     protected _displayViewStart: number = 0
     protected _formatHeader: object | null = null
     /** Header for this record (TODO: Other file types than EDF?) */
-    protected _headers: GenericBiosignalHeaders
+    protected _headers: GenericBiosignalHeader
     protected _montageCaches : BiosignalMontageService[] =  []
     protected _montages: BiosignalMontage[] = []
     protected _recordMontage: BiosignalMontage | null = null
@@ -58,7 +59,7 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
     constructor (
         name: string,
         channels: BiosignalChannel[],
-        headers: GenericBiosignalHeaders,
+        header: GenericBiosignalHeader,
         fileWorker: Worker,
         loaderManager?: MemoryManager,
         config = {} as BiosignalConfig
@@ -71,7 +72,7 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
             name,
             config?.type || 'eeg'
         )
-        this._headers = headers
+        this._headers = header
         if (loaderManager) {
             this.setMemoryManager(loaderManager)
         }
@@ -79,8 +80,8 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
             this._formatHeader = config.formatHeader
         }
         this._service = new EegService(this, fileWorker, loaderManager)
-        this._startTime = headers.recordingStartTime
-        this._dataDuration = headers.dataRecordCount*headers.dataRecordDuration
+        this._startTime = header.recordingStartTime
+        this._dataDuration = header.dataRecordCount*header.dataRecordDuration
         this._totalDuration = this._dataDuration
         // Calculate channel offset properties.
         calculateSignalOffsets(channels, Object.assign({ isRaw: true, layout: [] }, EEG_SETTINGS))
@@ -185,8 +186,12 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
     //                   METHODS                     //
     ///////////////////////////////////////////////////
 
-    addAnnotation (annotation: BiosignalAnnotation) {
-        this.annotations = [...this.annotations, annotation]
+    addAnnotationsFromTemplates (...templates: AnnotationTemplate[]) {
+        const annotations = [] as EegAnnotation[]
+        for (const tpl of templates) {
+            annotations.push(EegAnnotation.fromTemplate(tpl))
+        }
+        this.addAnnotations(...annotations)
     }
 
     async addMontage (name: string, label: string, setup: EegSetup, config?: ConfigMapChannels) {
