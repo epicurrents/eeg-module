@@ -1,14 +1,18 @@
-import EegMontage from './components/EegMontage'
-import EegMontageChannel from './components/EegMontageChannel'
+import {
+    EegAnnotation,
+    EegMontage,
+    EegMontageChannel,
+    EegSetup,
+    EegVideo,
+} from './components'
 import EegRecording from './EegRecording'
 import EegService from './service/EegService'
-import EegSetup from './components/EegSetup'
 import EegStudyLoader from './loader/EegStudyLoader'
-import EegVideo from './components/EegVideo'
 import runtime from './runtime'
 import settings from './config'
 
 export {
+    EegAnnotation,
     EegMontage,
     EegMontageChannel,
     EegRecording,
