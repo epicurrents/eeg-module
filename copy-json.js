@@ -1,10 +1,16 @@
 /**
- * Copy JSON configuration files to dist folder.
+ * Copy JSON configuration files to dist folder. Also copies the folder structure of the given
+ * source directory if it contains JSON files.
+ * NOTE: This script only copies new and rewrites existing files, it does not remove obsolete
+ * files or folders from dist.
  */
 const fs = require('fs')
 
 const srcPath = './src/'
 const trgPath = './dist/'
+
+const missingDirs = []
+let fileCreated = false
 
 function copyConfig (path) {
     const wrkPath = srcPath + path
@@ -15,13 +21,25 @@ function copyConfig (path) {
             const fullPath = srcPath + curPath
             if (fs.lstatSync(fullPath).isDirectory()) {
                 if (!fs.existsSync(trgPath + curPath)) {
-                    console.debug(`Creating target directory ${trgPath + curPath}.`)
-                    fs.mkdirSync(trgPath + curPath)
+                    console.debug(`Missing directory ${trgPath + curPath} waiting to be created.`)
+                    missingDirs.push(trgPath + curPath)
                 }
                 copyConfig(curPath)
+                if (!fileCreated && missingDirs.length) {
+                    const emptyDir = missingDirs.pop()
+                    console.debug(`Source directory ${emptyDir} did not contain config files.`)
+                } else {
+                    fileCreated = false
+                }
             } else if (curPath.endsWith('.json')) {
+                while (missingDirs.length) {
+                    const nextDir = missingDirs.shift()
+                    console.debug(`Creating target directory ${nextDir}.`)
+                    fs.mkdirSync(nextDir)
+                }
                 console.debug(`Copying target file ${trgPath + curPath}.`)
                 fs.copyFileSync(fullPath, trgPath + curPath)
+                fileCreated = true
             }
         })
     }
