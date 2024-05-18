@@ -32,8 +32,9 @@
   ],
   "scripts": {
     "build": "npm run build:umd && npm run build:tsc",
-    "build:tsc": "node node_modules/typescript/bin/tsc && node node_modules/tsconfig-replace-paths/dist/commonjs --project tsconfig.json && cp -r src/config/defaults* dist/config/",
+    "build:tsc": "node node_modules/typescript/bin/tsc && node node_modules/tsconfig-replace-paths/dist/commonjs --project tsconfig.json && npm run copy:json",
     "build:umd": "node node_modules/webpack/bin/webpack.js --progress --config webpack.config.js",
+    "copy:json": "node copy-json.js",
     "dev": "node node_modules/webpack/bin/webpack.js serve --progress --config webpack.dev.js",
     "lint": "npm run lint:src",
     "lint:src": "node node_modules/eslint/bin/eslint src",
