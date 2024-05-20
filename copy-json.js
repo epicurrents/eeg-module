@@ -21,8 +21,8 @@ function copyConfig (path) {
             const fullPath = srcPath + curPath
             if (fs.lstatSync(fullPath).isDirectory()) {
                 if (!fs.existsSync(trgPath + curPath)) {
-                    console.debug(`Missing directory ${trgPath + curPath} waiting to be created.`)
-                    missingDirs.push(trgPath + curPath)
+                    console.debug(`Missing directory ${curPath} waiting to be created.`)
+                    missingDirs.push(curPath)
                 }
                 copyConfig(curPath)
                 if (!fileCreated && missingDirs.length) {
@@ -35,9 +35,9 @@ function copyConfig (path) {
                 while (missingDirs.length) {
                     const nextDir = missingDirs.shift()
                     console.debug(`Creating target directory ${nextDir}.`)
-                    fs.mkdirSync(nextDir)
+                    fs.mkdirSync(trgPath + nextDir)
                 }
-                console.debug(`Copying target file ${trgPath + curPath}.`)
+                console.debug(`Copying file ${curPath}.`)
                 fs.copyFileSync(fullPath, trgPath + curPath)
                 fileCreated = true
             }
