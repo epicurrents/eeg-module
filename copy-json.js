@@ -14,14 +14,14 @@ let fileCreated = false
 
 function copyConfig (path) {
     const wrkPath = srcPath + path
-    console.debug(`Traversing path ${path}.`)
+    console.debug(`Traversing source path ${path}.`)
     if (fs.existsSync(wrkPath) && fs.lstatSync(wrkPath).isDirectory()) {
         fs.readdirSync(wrkPath).forEach(item => {
             const curPath = path + "/" + item
             const fullPath = srcPath + curPath
             if (fs.lstatSync(fullPath).isDirectory()) {
                 if (!fs.existsSync(trgPath + curPath)) {
-                    console.debug(`Missing directory ${curPath} waiting to be created.`)
+                    console.debug(`Missing target directory ${curPath} waiting to be created.`)
                     missingDirs.push(curPath)
                 }
                 copyConfig(curPath)
