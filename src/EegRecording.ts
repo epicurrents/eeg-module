@@ -64,10 +64,6 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
         loaderManager?: MemoryManager,
         config = {} as BiosignalConfig
     ) {
-        if (!window.__EPICURRENTS_RUNTIME__) {
-            Log.error(`Reference to main runtime was not found!`, SCOPE)
-        }
-        const EEG_SETTINGS = window.__EPICURRENTS_RUNTIME__.SETTINGS.modules.eeg as typeof EegSettings
         super(
             name,
             config?.type || 'eeg'
@@ -79,12 +75,6 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
         if (config.formatHeader) {
             this._formatHeader = config.formatHeader
         }
-        this._service = new EegService(this, fileWorker, loaderManager)
-        this._startTime = header.recordingStartTime
-        this._dataDuration = header.dataRecordCount*header.dataRecordDuration
-        this._totalDuration = this._dataDuration
-        // Calculate channel offset properties.
-        calculateSignalOffsets(channels, Object.assign({ isRaw: true, layout: [] }, EEG_SETTINGS))
         // Save sample counts and sampling rates (we need to pass these to the worker too).
         for (let i=0; i<channels.length; i++) {
             this._channels[i] = channels[i]
@@ -92,12 +82,10 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
             this._channels[i].originalSampleCount = channels[i].sampleCount
             this._channels[i].originalSamplingRate = channels[i].samplingRate
         }
-        // Add default setup and montages.
-        for (const setup of EEG_SETTINGS.defaultSetups) {
-            this.addSetup(`default:${setup}`, channels)
-            Log.debug(`Added setup default:${setup}.`, SCOPE)
-            Log.debug(`Added raw signals montage for setup default:${setup}.`, SCOPE)
-        }
+        this._service = new EegService(this, fileWorker, loaderManager)
+        this._startTime = header.recordingStartTime
+        this._dataDuration = header.dataRecordCount*header.dataRecordDuration
+        this._totalDuration = this._dataDuration
         // Listen to is-active changes.
         this.addPropertyUpdateHandler('is-active', async () => {
             // Complete loader setup if not already done.
@@ -116,7 +104,7 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
                             this.setupMutex().then((success) => {
                                 if (success) {
                                     Log.debug(`Buffer setup complete.`, SCOPE)
-                                    this.setupMontages()
+                                    this.addDefaultSetupsAndMontages()
                                     this.startCachingSignals()
                                 }
                             })
@@ -127,7 +115,7 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
                 } else {
                     this.setupCache().then(result => {
                         if (result) {
-                            this.setupMontages()
+                            this.addDefaultSetupsAndMontages()
                             this.startCachingSignals()
                         }
                     })
@@ -141,10 +129,11 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
         return super.annotations
     }
     set annotations (annotations: BiosignalAnnotation[]) {
-        if (!window.__EPICURRENTS_RUNTIME__) {
-            Log.error(`Reference to main application was not found!`, SCOPE)
+        if (!window.__EPICURRENTS__?.RUNTIME) {
+            Log.error(`Reference to main application runtime was not found!`, SCOPE)
+            return
         }
-        const EEG_SETTINGS = window.__EPICURRENTS_RUNTIME__.SETTINGS.modules.eeg as typeof EegSettings
+        const EEG_SETTINGS = window.__EPICURRENTS__.RUNTIME.SETTINGS.modules.eeg as typeof EegSettings
         annotation_loop:
         for (let i=0; i<annotations.length; i++) {
             const anno = annotations[i]
@@ -192,6 +181,41 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
             annotations.push(EegAnnotation.fromTemplate(tpl))
         }
         this.addAnnotations(...annotations)
+    }
+
+    async addDefaultSetupsAndMontages () {
+        if (!window.__EPICURRENTS__?.RUNTIME) {
+            Log.error(`Reference to main application runtime was not found, cannot perform setup.`, SCOPE)
+            return
+        }
+        const EEG_SETTINGS = window.__EPICURRENTS__.RUNTIME.SETTINGS.modules.eeg as typeof EegSettings
+        // Calculate raw channel offset properties.
+        calculateSignalOffsets(this._channels, Object.assign({ isRaw: true, layout: [] }, EEG_SETTINGS))
+        // Add default setups and montages.
+        for (const name of EEG_SETTINGS.defaultSetups) {
+            const setup = this.addSetup(`default:${name}`, this._channels)
+            Log.debug(`Added setup default:${name}.`, SCOPE)
+            Log.debug(`Added raw signals montage for setup default:${name}.`, SCOPE)
+            const montages = EEG_SETTINGS.defaultMontages[
+                setup.id.split(':')[1] as keyof typeof EEG_SETTINGS.defaultMontages
+            ]
+            for (const montage of montages) {
+                if (montage[0].indexOf(':') === -1) {
+                    const newMontage = await this.addMontage(`${setup.id}:${montage[0]}`, montage[1], setup)
+                    if (newMontage) {
+                        Log.debug(`Added montage ${montage[0]} for setup ${setup.id}.`, SCOPE)
+                    }
+                } else {
+                    const newMontage = await this.addMontage(`default:${montage[0]}`, montage[1], setup)
+                    if (newMontage) {
+                        Log.debug(`Added montage ${montage[1]} for setup default:${montage[0]}.`, SCOPE)
+                    }
+                }
+                if (this._recordMontage === null && this._montages.length) {
+                    this._recordMontage = this._montages[0]
+                }
+            }
+        }
     }
 
     async addMontage (name: string, label: string, setup: EegSetup, config?: ConfigMapChannels) {
@@ -337,34 +361,6 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
             this._cacheProps = result as SignalDataCache
         }
         return this._cacheProps
-    }
-
-    async setupMontages () {
-        if (!window.__EPICURRENTS_RUNTIME__) {
-            Log.error(`Reference to main application was not found!`, SCOPE)
-        }
-        const EEG_SETTINGS = window.__EPICURRENTS_RUNTIME__.SETTINGS.modules.eeg as typeof EegSettings
-        for (const setup of this._setups) {
-            const montages = EEG_SETTINGS.defaultMontages[
-                setup.id.split(':')[1] as keyof typeof EEG_SETTINGS.defaultMontages
-            ]
-            for (const montage of montages) {
-                if (montage[0].indexOf(':') === -1) {
-                    const newMontage = await this.addMontage(`${setup.id}:${montage[0]}`, montage[1], setup)
-                    if (newMontage) {
-                        Log.debug(`Added montage ${montage[0]} for setup ${setup.id}.`, SCOPE)
-                    }
-                } else {
-                    const newMontage = await this.addMontage(`default:${montage[0]}`, montage[1], setup)
-                    if (newMontage) {
-                        Log.debug(`Added montage ${montage[1]} for setup default:${montage[0]}.`, SCOPE)
-                    }
-                }
-                if (this._recordMontage === null && this._montages.length) {
-                    this._recordMontage = this._montages[0]
-                }
-            }
-        }
     }
 
     async setupMutex (): Promise<boolean> {
