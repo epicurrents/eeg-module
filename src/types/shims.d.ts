@@ -1,5 +1,5 @@
 /**
- * EpiCurrents EEG module shims.
+ * Epicurrents EEG module shims.
  * @package    epicurrents/eeg-module
  * @copyright  2020-2024 Sampsa Lohi
  * @license    Apache-2.0

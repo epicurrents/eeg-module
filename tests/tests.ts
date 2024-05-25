@@ -1,5 +1,5 @@
 /**
- * EpiCurrents EEG module tests.
+ * Epicurrents EEG module tests.
  * Due to the high level of integration, tests must be run sequentially.
  * This file describes the testing sequence and runs the appropriate tests.
  * @package    epicurrents/eeg-module
@@ -50,7 +50,7 @@ class Worker {
 
 let HEADER_INDEX = 0
 
-describe('EpiCurrents EEG module tests', () => {
+describe('Epicurrents EEG module tests', () => {
     const channels = [] as BiosignalChannel[]
     var header: GenericBiosignalHeaders
     test("Create a set of EEG channels", () => {

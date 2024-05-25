@@ -1,5 +1,5 @@
 /**
- * EpiCurrents EEG module.
+ * Epicurrents EEG module.
  * @package    epicurrents/eeg-module
  * @copyright  2023 Sampsa Lohi
  * @license    Apache-2.0

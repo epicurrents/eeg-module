@@ -1,2 +1,2 @@
-EEG Module for EpiCurrents library
-==================================
+EEG Module for EpiCurrents
+==========================

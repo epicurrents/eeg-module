@@ -1,5 +1,5 @@
 /**
- * EpiCurrents EEG annotation.
+ * Epicurrents EEG annotation.
  * @package    epicurrents/eeg-module
  * @copyright  2024 Sampsa Lohi
  * @license    Apache-2.0
