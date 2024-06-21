@@ -89,7 +89,7 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
         // Listen to is-active changes.
         this.addPropertyUpdateHandler('is-active', async () => {
             // Complete loader setup if not already done.
-            if (this.isActive && !this._service.isReady) {
+            if (this.isActive && !this._service.isReady && this._state === 'ready') {
                 if (this._memoryManager) {
                     // Calculate needed memory to load the entire recording.
                     let totalMem = 4 // For lock field.
@@ -291,6 +291,8 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
         const props = super.getMainProperties()
         if (this.state === 'added') {
             props.set('Waiting to load...', null)
+        } else if (this.state === 'error') {
+            props.set(this._errorReason, null)
         } else if (this.state === 'loading') {
             props.set('Loading metadata...', null)
         } else if (this.state === 'loaded') {
@@ -319,6 +321,9 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
     }
 
     async prepare () {
+        if (this._state === 'error') {
+            return false
+        }
         const response = await this._service.prepareWorker(
             this._headers,
             this._source as StudyContext,

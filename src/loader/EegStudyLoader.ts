@@ -6,6 +6,7 @@
  */
 
 import { BiosignalStudyLoader, GenericBiosignalHeader } from '@epicurrents/core'
+import { MB_BYTES } from '@epicurrents/core/dist/util'
 import {
     type ConfigStudyContext,
     type BiosignalChannel,
@@ -69,7 +70,28 @@ export default class EegStudyLoader extends BiosignalStudyLoader {
             this._memoryManager || undefined,
             { formatHeader: meta.formatHeader }
         )
-        recording.state = 'loaded'
+        // Check that we can display this resource using Float32Arrays.
+        let totalSamples = 0
+        for (const chan of meta.channels) {
+            totalSamples += chan.sampleCount
+        }
+        if (!window.__EPICURRENTS__?.RUNTIME) {
+            // For TypeScript really.
+            Log.error(`Reference to main application runtime was not found!`, SCOPE)
+        } else if (4*totalSamples > window.__EPICURRENTS__.RUNTIME.SETTINGS.app.maxLoadCacheSize) {
+            Log.error(
+                [
+                    `Decoded file size ${(4*totalSamples/MB_BYTES).toFixed(2)} Mib exceeds maximum cache size ` +
+                    `${(window.__EPICURRENTS__.RUNTIME.SETTINGS.app.maxLoadCacheSize/MB_BYTES).toFixed(2)} MiB.`,
+                    `The limit for maximum cache size can be changed with the app setting maxLoadCacheSize.`
+                ],
+                SCOPE
+            )
+            recording.errorReason = `File size is too large.`
+            recording.state = 'error'
+        } else {
+            recording.state = 'loaded'
+        }
         recording.source = this._study
         this._resources.push(recording)
         // Clear the loaded study.
