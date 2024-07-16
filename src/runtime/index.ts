@@ -77,6 +77,22 @@ const EEG: SafeObject & RuntimeResourceModule = {
             if (activeRes.sensitivity !== undefined) {
                 activeRes.sensitivity = value
             }
+        } else if (property === 'timebase') {
+            if (typeof value !== 'number' || value <= 0) {
+                logInvalidMutation(property, value, SCOPE, "Value must be a positive number.")
+                return
+            }
+            if (activeRes.timebase !== undefined) {
+                activeRes.timebase = value
+            }
+        } else if (property === 'timebase-unit') {
+            if (typeof value !== 'string' || value === '') {
+                logInvalidMutation(property, value, SCOPE, "Value must be a non-empty string.")
+                return
+            }
+            if (activeRes.timebaseUnit !== undefined) {
+                activeRes.timebaseUnit = value
+            }
         }
     },
 }
