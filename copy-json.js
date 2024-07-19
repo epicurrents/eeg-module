@@ -16,6 +16,11 @@ function copyConfig (path) {
     const wrkPath = srcPath + path
     console.debug(`Traversing source path ${path}.`)
     if (fs.existsSync(wrkPath) && fs.lstatSync(wrkPath).isDirectory()) {
+        const rootPath = trgPath + path
+        if (!fs.existsSync(rootPath)) {
+            console.debug(`Creating root directory ${rootPath}.`)
+            fs.mkdirSync(rootPath)
+        }
         fs.readdirSync(wrkPath).forEach(item => {
             const curPath = path + "/" + item
             const fullPath = srcPath + curPath
