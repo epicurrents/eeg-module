@@ -52,7 +52,7 @@ export default class EegService extends GenericBiosignalService implements Biosi
         // Find the data file; there should only be one.
         const fileUrl = study.files.filter(f => f.type === 'eeg' && f.role === 'data').map(file => file.url)[0]
         const commission = this._commissionWorker(
-            'setup-study',
+            'setup-worker',
             new Map<string, unknown>([
                 ['header', header.serializable],
                 ['url', fileUrl],
