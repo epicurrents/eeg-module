@@ -48,7 +48,7 @@ export default class EegService extends GenericBiosignalService implements Biosi
         return (await super.handleMessage(message))
     }
 
-    async prepareWorker (header: BiosignalHeaderRecord, study: StudyContext, formatHeader?: object) {
+    async setupWorker (header: BiosignalHeaderRecord, study: StudyContext, formatHeader?: unknown) {
         // Find the data file; there should only be one.
         const fileUrl = study.files.filter(f => f.type === 'eeg' && f.role === 'data').map(file => file.url)[0]
         const commission = this._commissionWorker(

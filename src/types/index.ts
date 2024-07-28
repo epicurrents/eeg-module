@@ -21,7 +21,6 @@ export interface EegResource extends BiosignalResource {
     /** Maximum sampling rate of displayed signals. */
     maxSamplingRate: number
     prepare (): Promise<boolean>
-    setupMutex: () => Promise<boolean>
 }
 
 export type EegStudyProperties = BiosignalStudyProperties & {

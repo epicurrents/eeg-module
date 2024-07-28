@@ -32,6 +32,11 @@ const EegSettings: EegModuleSettings = {
         { name: 'alpha', symbol: 'α', upperLimit: 13 },
         { name: 'beta', symbol: 'β', upperLimit: 30 },
     ],
+    filterChannelTypes: {
+        eeg: ['highpass', 'lowpass', 'notch'],
+        ekg: ['notch'],
+        eog: ['highpass', 'lowpass', 'notch'],
+    },
     filterPaddingSeconds: 10,
     filters: {
         highpass: {

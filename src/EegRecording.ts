@@ -25,7 +25,6 @@ import {
     type BiosignalMontage,
     type BiosignalMontageService,
     type MemoryManager,
-    type SignalDataCache,
     type StudyContext,
 } from '@epicurrents/core/dist/types'
 import EegAnnotation from './components/EegAnnotation'
@@ -33,14 +32,11 @@ import EegService from './service/EegService'
 import EegSettings from './config'
 import { EegMontage, EegSetup, EegVideo } from './components'
 import { type EegResource } from './types'
-import { MutexExportProperties } from 'asymmetric-io-mutex'
 import Log from 'scoped-ts-log'
 
 const SCOPE = "EegRecording"
 export default class EegRecording extends GenericBiosignalResource implements EegResource {
     protected _activeMontage: BiosignalMontage | null = null
-    protected _cacheProps: SignalDataCache | null = null
-    protected _dataProps: MutexExportProperties | null = null
     /** The display view start can be optionally updated here after signals are processed and actually displayed. */
     protected _displayViewStart: number = 0
     protected _formatHeader: object | null = null
@@ -220,7 +216,7 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
 
     async addMontage (name: string, label: string, setup: EegSetup, config?: ConfigMapChannels) {
         const getMontage = async () => {
-            if (this._memoryManager) {
+            if (this._memoryManager && this._mutexProps) {
                 if (this._service.bufferRangeStart === -1) {
                     Log.error(`Cannot add a montage before buffer has been intialized.`, SCOPE)
                     return null
@@ -230,7 +226,7 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
                     this._memoryManager,
                     { label: label }
                 )
-                await montage.setupLoaderWithInputMutex(this._dataProps)
+                await montage.setupLoaderWithInputMutex(this._mutexProps)
                 return montage
             }
             const montage = new EegMontage(
@@ -324,7 +320,7 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
         if (this._state === 'error') {
             return false
         }
-        const response = await this._service.prepareWorker(
+        const response = await this._service.setupWorker(
             this._headers,
             this._source as StudyContext,
             this._formatHeader || undefined
@@ -335,10 +331,12 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
                 return true
             }
             // There was an error when preparing the resource.
+            this._errorReason = 'Resource loading failed'
             this.state = 'error'
             return false
         }).catch(e => {
             Log.error(`Failed to prepare a worker for the EEG recording.`, SCOPE, e)
+            this._errorReason = 'Resource loading failed'
             this.state = 'error'
             return false
         })
@@ -358,30 +356,5 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
         this._annotations = []
         this._dataGaps.clear()
         Log.info(`All buffers released from ${this.name}`, SCOPE)
-    }
-
-    async setupCache () {
-        const result = await this._service.setupCache()
-        if (result) {
-            this._cacheProps = result as SignalDataCache
-        }
-        return this._cacheProps
-    }
-
-    async setupMutex (): Promise<boolean> {
-        const success = await this._service.setupMutex().then(async response => {
-            if (response) {
-                Log.debug(`Cache for raw signal data initiated.`, SCOPE)
-                this._dataProps = response
-                return true
-            } else {
-                Log.error(`Cache initialization failed.`, SCOPE)
-                return false
-            }
-        }).catch(e => {
-            console.error(e)
-            return false
-        })
-        return success
     }
 }
