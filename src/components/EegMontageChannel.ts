@@ -16,13 +16,7 @@ export default class EegMontageChannel extends GenericBiosignalChannel implement
         name: string, label: string, type: string,
         active: number, reference: number[], averaged: boolean,
         samplingRate: number, unit: string, visible: boolean,
-        extraProperties: {
-            amplification?: number, sensitivity?: number,
-            displayPolarity?: -1 | 0 | 1, offset?: number | BiosignalChannel['offset'],
-            highpassFilter?: number, lowpassFilter?: number, notchFilter?: number,
-            sampleCount?: number,
-            originalSamplingRate?: number, originalSampleCount?: number
-        } = {}
+        extraProperties: Partial<BiosignalChannel> = {}
     ) {
         super(name, label, type, active, reference, averaged, samplingRate, unit, visible, extraProperties)
     }
