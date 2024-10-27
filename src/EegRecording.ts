@@ -106,6 +106,9 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
                             })
                         } else {
                             Log.error(`Memory allocation failed.`, SCOPE)
+                            this.state = 'error'
+                            this.errorReason = 'Memory allocation failed'
+                            this.isActive = false
                         }
                     })
                 } else {
@@ -299,8 +302,8 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
             if (this._dependenciesMissing.length > 0) {
                 const totalDeps = this._dependenciesMissing.length + this._dependenciesReady.length
                 props.set(
-                    'Loading dependency {n}/{t}...', 
-                    { 
+                    'Loading dependency {n}/{t}...',
+                    {
                         n: totalDeps - this._dependenciesMissing.length + 1,
                         t: totalDeps,
                     }
