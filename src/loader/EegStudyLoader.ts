@@ -25,6 +25,7 @@ import Log from 'scoped-ts-log'
 const SCOPE = 'EegStudyLoader'
 
 export default class EegStudyLoader extends BiosignalStudyLoader {
+    static readonly CONTEXT = EegRecording.CONTEXTS.BIOSIGNAL
 
     constructor (name: string, contexts: string[], types: string[], loader: FileFormatReader) {
         super(name, contexts, types, loader)
@@ -108,7 +109,7 @@ export default class EegStudyLoader extends BiosignalStudyLoader {
             for (let i=0; i<context.files.length; i++) {
                 if (context.files[i].type === 'video' || context.files[i].name.endsWith('.mp4')) {
                     null // TODO: Video handling?
-                } else if (context.files[i].type === 'sig') {
+                } else if (context.files[i].type === EegStudyLoader.CONTEXT) {
                     context.files[i].type = `eeg`
                 }
             }
@@ -126,7 +127,7 @@ export default class EegStudyLoader extends BiosignalStudyLoader {
             return null
         }
         study.type = 'eeg'
-        if (study.files[0] && study.files[0].type === 'sig') {
+        if (study.files[0] && study.files[0].type === EegStudyLoader.CONTEXT) {
             study.files[0].type = `eeg`
         }
         const meta = study.meta as EegStudyProperties
@@ -194,7 +195,7 @@ export default class EegStudyLoader extends BiosignalStudyLoader {
                         physUnit === '%'
                     ) {
                         // Generic signal
-                        sigType = 'sig'
+                        sigType = EegStudyLoader.CONTEXT
                     }
                 }
             }
