@@ -53,7 +53,7 @@
     "@epicurrents/core": "^0.2.0-1",
     "asymmetric-io-mutex": "^0.6.8",
     "axios": "^1.6.2",
-    "scoped-ts-log": "^2.0.0"
+    "scoped-event-log": "^2.0.0"
   },
   "devDependencies": {
     "@babel/core": "^7.18.2",

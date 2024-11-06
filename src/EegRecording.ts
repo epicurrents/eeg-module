@@ -33,7 +33,7 @@ import EegService from './service/EegService'
 import EegSettings from './config'
 import { EegMontage, EegSetup, EegVideo } from './components'
 import { type EegResource } from './types'
-import Log from 'scoped-ts-log'
+import Log from 'scoped-event-log'
 
 const SCOPE = "EegRecording"
 export default class EegRecording extends GenericBiosignalResource implements EegResource {

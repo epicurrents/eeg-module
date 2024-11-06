@@ -20,7 +20,7 @@ import {
 import EegRecording from '../EegRecording'
 import { type EegResource, type EegStudyProperties } from '../types'
 //import EegRecording from '../EegRecording'
-import Log from 'scoped-ts-log'
+import Log from 'scoped-event-log'
 
 const SCOPE = 'EegStudyLoader'
 

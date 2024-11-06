@@ -17,7 +17,7 @@ import {
 } from '@epicurrents/core/dist/types'
 import EegMontageChannel from './EegMontageChannel'
 import { type EegResource } from '../types'
-import Log from 'scoped-ts-log'
+import Log from 'scoped-event-log'
 
 const SCOPE = 'EegMontage'
 
