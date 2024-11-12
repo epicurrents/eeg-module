@@ -81,7 +81,7 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
         }
         this._service = new EegService(this, fileWorker, loaderManager)
         this._startTime = header.recordingStartTime
-        this._dataDuration = header.dataRecordCount*header.dataRecordDuration
+        this._dataDuration = header.dataUnitCount*header.dataUnitDuration
         this._totalDuration = this._dataDuration
         // Listen to is-active changes.
         this.addEventListener(AssetEvents.ACTIVATE, async () => {
