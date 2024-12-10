@@ -1,9 +1,9 @@
 import {
     type BiosignalHeaderSignal,
     type BiosignalResource,
+    type BiosignalStudyProperties,
     type VideoAttachment,
 } from '@epicurrents/core/dist/types'
-import { type BiosignalStudyProperties } from '@epicurrents/core/dist/types/biosignal'
 
 /**
  * Properties expected of an EEG file header signal.
