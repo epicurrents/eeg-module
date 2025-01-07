@@ -27,11 +27,12 @@ import {
     type BiosignalMontageService,
     type MemoryManager,
     type StudyContext,
+    SourceChannel,
 } from '@epicurrents/core/dist/types'
 import EegAnnotation from './components/EegAnnotation'
 import EegService from './service/EegService'
 import EegSettings from './config'
-import { EegMontage, EegSetup, EegVideo } from './components'
+import { EegMontage, EegSetup, EegSourceChannel, EegVideo } from './components'
 import { type EegResource } from './types'
 import Log from 'scoped-event-log'
 
@@ -74,10 +75,17 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
         }
         // Save sample counts and sampling rates (we need to pass these to the worker too).
         for (let i=0; i<channels.length; i++) {
-            this._channels[i] = channels[i]
-            // Save original sampling rate and sample count in case we do interpolation later.
-            this._channels[i].originalSampleCount = channels[i].sampleCount
-            this._channels[i].originalSamplingRate = channels[i].samplingRate
+            this._channels.push(new EegSourceChannel(
+                channels[i].name,
+                channels[i].label,
+                channels[i].type,
+                i,
+                channels[i].averaged,
+                channels[i].samplingRate,
+                channels[i].unit,
+                channels[i].visible,
+                channels[i]
+            ))
         }
         this._service = new EegService(this, fileWorker, loaderManager)
         this._startTime = header.recordingStartTime
@@ -160,6 +168,12 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
             }
         }
         super.annotations = annotations
+    }
+    get channels () {
+        return this._channels as SourceChannel[]
+    }
+    set channels (value: SourceChannel[]) {
+        this._channels = value
     }
     get hasVideo () {
         return (this._videos.length > 0)

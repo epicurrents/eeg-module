@@ -77,15 +77,6 @@ export default class EegMontage extends GenericBiosignalMontage implements Biosi
                               ) as ConfigMapChannels
         const chanProps = mapMontageChannels(this._setup, channelConfig)
         this.channels = chanProps.map((chan) => {
-            // We need to copy some properties to optional params.
-            const optionalParams = {
-                amplification: chan.amplification,
-                displayPolarity: chan.displayPolarity,
-                laterality: chan.laterality,
-                offset: chan.offset,
-                sampleCount: chan.sampleCount,
-                sensistivity: chan.sensitivity,
-            }
             return new EegMontageChannel(
                 chan.name,
                 chan.label,
@@ -96,7 +87,7 @@ export default class EegMontage extends GenericBiosignalMontage implements Biosi
                 chan.samplingRate,
                 chan.unit,
                 chan.visible,
-                optionalParams
+                chan
             )
         })
         return this.channels

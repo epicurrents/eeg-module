@@ -1,8 +1,9 @@
-import {
-    type BiosignalHeaderSignal,
-    type BiosignalResource,
-    type BiosignalStudyProperties,
-    type VideoAttachment,
+import type {
+    SourceChannel,
+    BiosignalHeaderSignal,
+    BiosignalResource,
+    BiosignalStudyProperties,
+    VideoAttachment,
 } from '@epicurrents/core/dist/types'
 
 /**
@@ -16,6 +17,7 @@ export type EegHeaderSignal = BiosignalHeaderSignal & {
  */
 export interface EegResource extends BiosignalResource {
     // Properties
+    channels: SourceChannel[]
     /** Maximum number of samples in a record of displayed signals. */
     maxSampleCount: number
     /** Maximum sampling rate of displayed signals. */

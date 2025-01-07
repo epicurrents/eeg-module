@@ -5,12 +5,12 @@
  * @license    Apache-2.0
  */
 
-import { GenericBiosignalChannel } from '@epicurrents/core'
+import { GenericMontageChannel } from '@epicurrents/core'
 import { type MontageChannel, type BiosignalChannel } from '@epicurrents/core/dist/types'
 
 //const SCOPE = 'EegMontageChannel'
 
-export default class EegMontageChannel extends GenericBiosignalChannel implements MontageChannel {
+export default class EegMontageChannel extends GenericMontageChannel implements MontageChannel {
 
     constructor (
         name: string, label: string, type: string,
