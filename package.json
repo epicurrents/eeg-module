@@ -51,7 +51,7 @@
   "author": "Sampsa Lohi",
   "license": "Apache-2.0",
   "dependencies": {
-    "@epicurrents/core": "^0.3.0-0",
+    "@epicurrents/core": "^0.3.0-2",
     "asymmetric-io-mutex": "^0.6.8",
     "axios": "^1.6.2",
     "scoped-event-log": "^2.0.0"
