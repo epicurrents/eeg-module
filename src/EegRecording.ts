@@ -16,24 +16,24 @@ import {
     secondsToTimeString,
     timePartsToShortString,
 } from '@epicurrents/core/dist/util'
-import {
-    type AnnotationTemplate,
-    type ConfigBiosignalSetup,
-    type ConfigMapChannels,
-    type BiosignalAnnotation,
-    type BiosignalChannel,
-    type BiosignalConfig,
-    type BiosignalMontage,
-    type BiosignalMontageService,
-    type MemoryManager,
-    type StudyContext,
+import type {
+    AnnotationTemplate,
+    ConfigBiosignalSetup,
+    ConfigMapChannels,
+    BiosignalAnnotation,
+    BiosignalChannel,
+    BiosignalConfig,
+    BiosignalMontage,
+    BiosignalMontageService,
+    MemoryManager,
+    StudyContext,
     SourceChannel,
 } from '@epicurrents/core/dist/types'
 import EegAnnotation from './components/EegAnnotation'
 import EegService from './service/EegService'
 import EegSettings from './config'
 import { EegMontage, EegSetup, EegSourceChannel, EegVideo } from './components'
-import { type EegResource } from './types'
+import type { EegResource } from './types'
 import Log from 'scoped-event-log'
 
 const SCOPE = "EegRecording"
@@ -62,10 +62,7 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
         loaderManager?: MemoryManager,
         config = {} as BiosignalConfig
     ) {
-        super(
-            name,
-            config?.type || 'eeg'
-        )
+        super(name, config?.modality || 'eeg')
         this._headers = header
         if (loaderManager) {
             this.setMemoryManager(loaderManager)
@@ -78,7 +75,7 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
             this._channels.push(new EegSourceChannel(
                 channels[i].name,
                 channels[i].label,
-                channels[i].type,
+                channels[i].modality,
                 i,
                 channels[i].averaged,
                 channels[i].samplingRate,
@@ -280,7 +277,7 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
             // Store common sampling rate.
             let sr = 0
             for (const chan of setup.channels) {
-                if (chan.type === 'eeg') {
+                if (chan.modality === 'eeg') {
                     if (!sr && chan.samplingRate) {
                         sr = chan.samplingRate
                     } else if (sr !== chan.samplingRate) {

@@ -13,12 +13,12 @@ import { type MontageChannel, type BiosignalChannel } from '@epicurrents/core/di
 export default class EegMontageChannel extends GenericMontageChannel implements MontageChannel {
 
     constructor (
-        name: string, label: string, type: string,
+        name: string, label: string, modality: string,
         active: number, reference: number[], averaged: boolean,
         samplingRate: number, unit: string, visible: boolean,
         extraProperties: Partial<BiosignalChannel> = {}
     ) {
-        super(name, label, type, active, reference, averaged, samplingRate, unit, visible, extraProperties)
+        super(name, label, modality, active, reference, averaged, samplingRate, unit, visible, extraProperties)
     }
 
     get active () {

@@ -80,7 +80,7 @@ export default class EegMontage extends GenericBiosignalMontage implements Biosi
             return new EegMontageChannel(
                 chan.name,
                 chan.label,
-                chan.type as string,
+                chan.modality,
                 chan.active,
                 chan.reference,
                 chan.averaged,

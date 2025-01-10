@@ -25,13 +25,12 @@ import Log from 'scoped-event-log'
 const SCOPE = 'EegStudyLoader'
 
 export default class EegStudyLoader extends BiosignalStudyLoader {
-    static readonly CONTEXT = EegRecording.CONTEXTS.BIOSIGNAL
 
-    constructor (name: string, contexts: string[], types: string[], loader: FileFormatReader) {
-        super(name, contexts, types, loader)
+    constructor (name: string, modalities: string[], loader: FileFormatReader) {
+        super(name, modalities, loader)
     }
 
-    get resourceScope () {
+    get resourceModality () {
         return 'eeg'
     }
 
@@ -107,10 +106,10 @@ export default class EegStudyLoader extends BiosignalStudyLoader {
         if (context) {
             // Check for video attachments
             for (let i=0; i<context.files.length; i++) {
-                if (context.files[i].type === 'video' || context.files[i].name.endsWith('.mp4')) {
+                if (context.files[i].modality === 'video' || context.files[i].name.endsWith('.mp4')) {
                     null // TODO: Video handling?
-                } else if (context.files[i].type === EegStudyLoader.CONTEXT) {
-                    context.files[i].type = `eeg`
+                } else if (context.files[i].modality === 'signal') {
+                    context.files[i].modality = `eeg`
                 }
             }
         }
@@ -126,9 +125,9 @@ export default class EegStudyLoader extends BiosignalStudyLoader {
         if (!study) {
             return null
         }
-        study.type = 'eeg'
-        if (study.files[0] && study.files[0].type === EegStudyLoader.CONTEXT) {
-            study.files[0].type = `eeg`
+        study.modality = 'eeg'
+        if (study.files[0] && study.files[0].modality === 'signal') {
+            study.files[0].modality = `eeg`
         }
         const meta = study.meta as EegStudyProperties
         if (meta.header.signals) {
@@ -226,7 +225,7 @@ export default class EegStudyLoader extends BiosignalStudyLoader {
                     partial: false,
                     range: [],
                     role: 'media',
-                    type: 'video',
+                    modality: 'video',
                     // Video files require a URL to play in the browser.
                     url: studyFile.url,
                 })
@@ -234,8 +233,8 @@ export default class EegStudyLoader extends BiosignalStudyLoader {
                 if (!study.format) {
                     study.format = format
                 }
-                if (!study.type) {
-                    study.type = 'video'
+                if (!study.modality) {
+                    study.modality = 'video'
                 }
                 const meta = study.meta as { videos?: VideoAttachment[] }
                 // Figuring out video duration requires creating a video element and preloading the metadata
