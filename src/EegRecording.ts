@@ -10,29 +10,31 @@ import {
     GenericBiosignalHeader,
     GenericBiosignalResource,
 } from '@epicurrents/core'
+import { AssetEvents } from '@epicurrents/core/dist/events'
 import {
     calculateSignalOffsets,
     secondsToTimeString,
     timePartsToShortString,
 } from '@epicurrents/core/dist/util'
-import {
-    type AnnotationTemplate,
-    type ConfigBiosignalSetup,
-    type ConfigMapChannels,
-    type BiosignalAnnotation,
-    type BiosignalChannel,
-    type BiosignalConfig,
-    type BiosignalMontage,
-    type BiosignalMontageService,
-    type MemoryManager,
-    type StudyContext,
+import type {
+    AnnotationTemplate,
+    ConfigBiosignalSetup,
+    ConfigMapChannels,
+    BiosignalAnnotation,
+    BiosignalChannel,
+    BiosignalConfig,
+    BiosignalMontage,
+    BiosignalMontageService,
+    MemoryManager,
+    StudyContext,
+    SourceChannel,
 } from '@epicurrents/core/dist/types'
 import EegAnnotation from './components/EegAnnotation'
 import EegService from './service/EegService'
 import EegSettings from './config'
-import { EegMontage, EegSetup, EegVideo } from './components'
-import { type EegResource } from './types'
-import Log from 'scoped-ts-log'
+import { EegMontage, EegSetup, EegSourceChannel, EegVideo } from './components'
+import type { EegResource } from './types'
+import Log from 'scoped-event-log'
 
 const SCOPE = "EegRecording"
 export default class EegRecording extends GenericBiosignalResource implements EegResource {
@@ -60,10 +62,7 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
         loaderManager?: MemoryManager,
         config = {} as BiosignalConfig
     ) {
-        super(
-            name,
-            config?.type || 'eeg'
-        )
+        super(name, config?.modality || 'eeg')
         this._headers = header
         if (loaderManager) {
             this.setMemoryManager(loaderManager)
@@ -73,17 +72,24 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
         }
         // Save sample counts and sampling rates (we need to pass these to the worker too).
         for (let i=0; i<channels.length; i++) {
-            this._channels[i] = channels[i]
-            // Save original sampling rate and sample count in case we do interpolation later.
-            this._channels[i].originalSampleCount = channels[i].sampleCount
-            this._channels[i].originalSamplingRate = channels[i].samplingRate
+            this._channels.push(new EegSourceChannel(
+                channels[i].name,
+                channels[i].label,
+                channels[i].modality,
+                i,
+                channels[i].averaged,
+                channels[i].samplingRate,
+                channels[i].unit,
+                channels[i].visible,
+                channels[i]
+            ))
         }
         this._service = new EegService(this, fileWorker, loaderManager)
         this._startTime = header.recordingStartTime
-        this._dataDuration = header.dataRecordCount*header.dataRecordDuration
+        this._dataDuration = header.dataUnitCount*header.dataUnitDuration
         this._totalDuration = this._dataDuration
         // Listen to is-active changes.
-        this.addPropertyUpdateHandler('is-active', async () => {
+        this.addEventListener(AssetEvents.ACTIVATE, async () => {
             // Complete loader setup if not already done.
             if (this.isActive && !this._service.isReady && this._state === 'ready') {
                 if (this._memoryManager) {
@@ -106,6 +112,9 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
                             })
                         } else {
                             Log.error(`Memory allocation failed.`, SCOPE)
+                            this.state = 'error'
+                            this.errorReason = 'Memory allocation failed'
+                            this.isActive = false
                         }
                     })
                 } else {
@@ -119,7 +128,7 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
             } else if (!this.isActive) {
                 //this.releaseBuffers()
             }
-        })
+        }, this.id)
     }
     get annotations () {
         return super.annotations
@@ -156,6 +165,12 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
             }
         }
         super.annotations = annotations
+    }
+    get channels () {
+        return this._channels as SourceChannel[]
+    }
+    set channels (value: SourceChannel[]) {
+        this._channels = value
     }
     get hasVideo () {
         return (this._videos.length > 0)
@@ -251,21 +266,19 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
             montage.mapChannels()
         }
         montage.setDataGaps(this._dataGaps)
-        this._montages.push(montage)
-        this.onPropertyUpdate('montages')
+        this._setPropertyValue('montages', [...this.montages, montage])
         return montage
     }
 
     addSetup (id: string, channels: BiosignalChannel[], config?: ConfigBiosignalSetup) {
         const setup = new EegSetup(id, channels, config)
         this._setups.push(setup)
-        this.onPropertyUpdate('setups')
         if (!this._setup) {
             // Store common sampling rate.
             let sr = 0
             for (const chan of setup.channels) {
-                if (chan.type === 'eeg') {
-                    if (!sr) {
+                if (chan.modality === 'eeg') {
+                    if (!sr && chan.samplingRate) {
                         sr = chan.samplingRate
                     } else if (sr !== chan.samplingRate) {
                         sr = 0
@@ -274,12 +287,11 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
                 }
             }
             if (!sr) {
-                this._samplingRate = null
+                this._setPropertyValue('samplingRate', null)
             } else {
-                this._samplingRate = sr
+                this._setPropertyValue('samplingRate', sr)
             }
             this.setup = setup
-            this.onPropertyUpdate('sampling-rate')
         }
         return setup
     }
@@ -299,8 +311,8 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
             if (this._dependenciesMissing.length > 0) {
                 const totalDeps = this._dependenciesMissing.length + this._dependenciesReady.length
                 props.set(
-                    'Loading dependency {n}/{t}...', 
-                    { 
+                    'Loading dependency {n}/{t}...',
+                    {
                         n: totalDeps - this._dependenciesMissing.length + 1,
                         t: totalDeps,
                     }

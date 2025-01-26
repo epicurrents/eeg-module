@@ -9,9 +9,6 @@ const fs = require('fs')
 const srcPath = './src/'
 const trgPath = './dist/'
 
-const missingDirs = []
-let fileCreated = false
-
 function copyConfig (path) {
     const wrkPath = srcPath + path
     console.debug(`Traversing source path ${path}.`)
@@ -25,26 +22,10 @@ function copyConfig (path) {
             const curPath = path + "/" + item
             const fullPath = srcPath + curPath
             if (fs.lstatSync(fullPath).isDirectory()) {
-                if (!fs.existsSync(trgPath + curPath)) {
-                    console.debug(`Missing target directory ${curPath} waiting to be created.`)
-                    missingDirs.push(curPath)
-                }
                 copyConfig(curPath)
-                if (!fileCreated && missingDirs.length) {
-                    const emptyDir = missingDirs.pop()
-                    console.debug(`Source directory ${emptyDir} did not contain config files.`)
-                } else {
-                    fileCreated = false
-                }
             } else if (curPath.endsWith('.json')) {
-                while (missingDirs.length) {
-                    const nextDir = missingDirs.shift()
-                    console.debug(`Creating target directory ${nextDir}.`)
-                    fs.mkdirSync(trgPath + nextDir)
-                }
                 console.debug(`Copying file ${curPath}.`)
                 fs.copyFileSync(fullPath, trgPath + curPath)
-                fileCreated = true
             }
         })
     }

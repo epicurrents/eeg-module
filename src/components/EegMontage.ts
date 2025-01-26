@@ -17,7 +17,7 @@ import {
 } from '@epicurrents/core/dist/types'
 import EegMontageChannel from './EegMontageChannel'
 import { type EegResource } from '../types'
-import Log from 'scoped-ts-log'
+import Log from 'scoped-event-log'
 
 const SCOPE = 'EegMontage'
 
@@ -68,7 +68,7 @@ export default class EegMontage extends GenericBiosignalMontage implements Biosi
     mapChannels (config?: ConfigMapChannels) {
         if (!window.__EPICURRENTS__?.RUNTIME) {
             Log.error(`Reference to main application was not found!`, SCOPE)
-            return
+            return []
         }
         const channelConfig = Object.assign(
                                 {},
@@ -77,27 +77,19 @@ export default class EegMontage extends GenericBiosignalMontage implements Biosi
                               ) as ConfigMapChannels
         const chanProps = mapMontageChannels(this._setup, channelConfig)
         this.channels = chanProps.map((chan) => {
-            // We need to copy some properties to optional params.
-            const optionalParams = {
-                amplification: chan.amplification,
-                displayPolarity: chan.displayPolarity,
-                laterality: chan.laterality,
-                offset: chan.offset,
-                sampleCount: chan.sampleCount,
-                sensistivity: chan.sensitivity,
-            }
             return new EegMontageChannel(
                 chan.name,
                 chan.label,
-                chan.type as string,
+                chan.modality,
                 chan.active,
                 chan.reference,
                 chan.averaged,
                 chan.samplingRate,
                 chan.unit,
                 chan.visible,
-                optionalParams
+                chan
             )
         })
+        return this.channels
     }
 }

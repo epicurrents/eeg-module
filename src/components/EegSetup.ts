@@ -7,7 +7,7 @@
 
 import { GenericBiosignalSetup } from '@epicurrents/core'
 import { type BiosignalChannel, type ConfigBiosignalSetup } from '@epicurrents/core/dist/types'
-import Log from 'scoped-ts-log'
+import Log from 'scoped-event-log'
 
 // Build default setups.
 const DEFAULTS = {} as { [setup: string]: ConfigBiosignalSetup }
