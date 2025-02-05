@@ -10,7 +10,7 @@ import {
     GenericBiosignalHeader,
     GenericBiosignalResource,
 } from '@epicurrents/core'
-import { AssetEvents } from '@epicurrents/core/dist/events'
+import { AssetEvents, BiosignalResourceEvents } from '@epicurrents/core/dist/events'
 import {
     calculateSignalOffsets,
     secondsToTimeString,
@@ -37,6 +37,10 @@ import type { EegResource } from './types'
 import Log from 'scoped-event-log'
 
 const SCOPE = "EegRecording"
+/**
+ * EEG recording resource.
+ * @emits signal-caching-complete - When all signals have been cached from data source.
+ */
 export default class EegRecording extends GenericBiosignalResource implements EegResource {
     protected _activeMontage: BiosignalMontage | null = null
     /** The display view start can be optionally updated here after signals are processed and actually displayed. */
@@ -100,14 +104,16 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
                         totalMem += chan.sampleCount + dataFieldsLen
                     }
                     // Let memory allocation happen in the background.
-                    this._service.requestMemory(totalMem).then(success => {
-                        if (success) {
+                    this._service.requestMemory(totalMem).then(memorySuccess => {
+                        if (memorySuccess) {
                             Log.debug(`Memory allocation complete.`, SCOPE)
-                            this.setupMutex().then((success) => {
-                                if (success) {
+                            this.setupMutex().then((mutex) => {
+                                if (mutex) {
                                     Log.debug(`Buffer setup complete.`, SCOPE)
                                     this.addDefaultSetupsAndMontages()
-                                    this.startCachingSignals()
+                                    this.cacheSignals().then(_cacheSuccess => {
+                                        this.dispatchEvent(BiosignalResourceEvents.SIGNAL_CACHING_COMPLETE)
+                                    })
                                 }
                             })
                         } else {
@@ -118,10 +124,12 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
                         }
                     })
                 } else {
-                    this.setupCache().then(result => {
-                        if (result) {
+                    this.setupCache().then(dataCache => {
+                        if (dataCache) {
                             this.addDefaultSetupsAndMontages()
-                            this.startCachingSignals()
+                            this.cacheSignals().then(_cacheSuccess => {
+                                this.dispatchEvent(BiosignalResourceEvents.SIGNAL_CACHING_COMPLETE)
+                            })
                         }
                     })
                 }
