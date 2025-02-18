@@ -39,7 +39,7 @@
     ],
     "reference": {
         "common": false,
-        "description": "laplacian source",
+        "description": "source laplacian",
         "label": "LPL",
         "type": "computed unique",
         "unit": "uV"

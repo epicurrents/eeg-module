@@ -6,7 +6,7 @@
  */
 
 import { type BiosignalAnnotation } from '@epicurrents/core/dist/types'
-import { type EegModuleSettings } from '../types'
+import { type EegModuleSettings } from '#types'
 
 const EegSettings: EegModuleSettings = {
     annotations: {
@@ -17,7 +17,7 @@ const EegSettings: EegModuleSettings = {
         '10-20': [
             ['rec', 'As recorded'],
             ['avg', 'Average reference'],
-            ['dbn', 'Double banana'],
+            ['lon', 'Longitudinal'],
             ['trv', 'Transverse'],
             ['lpl', 'Source Laplacian'],
         ] as [string, string][],

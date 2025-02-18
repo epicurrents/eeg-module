@@ -26,8 +26,8 @@ const DEFAULTS = {} as { [std: string]: { [montage: string]: BiosignalMontageTem
 DEFAULTS['10-20'] = {}
 import DEFAULT_1020_AVG from '../config/defaults/10-20/montages/avg.json'
 DEFAULTS['10-20']['avg'] = DEFAULT_1020_AVG as BiosignalMontageTemplate
-import DEFAULT_1020_DBN from '../config/defaults/10-20/montages/dbn.json'
-DEFAULTS['10-20']['dbn'] = DEFAULT_1020_DBN as BiosignalMontageTemplate
+import DEFAULT_1020_LON from '../config/defaults/10-20/montages/lon.json'
+DEFAULTS['10-20']['lon'] = DEFAULT_1020_LON as BiosignalMontageTemplate
 import DEFAULT_1020_LPL from '../config/defaults/10-20/montages/lpl.json'
 DEFAULTS['10-20']['lpl'] = DEFAULT_1020_LPL as BiosignalMontageTemplate
 import DEFAULT_1020_REC from '../config/defaults/10-20/montages/rec.json'
