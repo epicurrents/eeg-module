@@ -17,9 +17,8 @@ const EegSettings: EegModuleSettings = {
         '10-20': [
             ['rec', 'As recorded'],
             ['avg', 'Average reference'],
-            ['lon', 'Longitudinal'],
+            ['lon', 'Double banana'],
             ['trv', 'Transverse'],
-            ['lpl', 'Source Laplacian'],
         ] as [string, string][],
     },
     defaultSetups: [

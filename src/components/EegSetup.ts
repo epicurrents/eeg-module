@@ -18,10 +18,10 @@ const SCOPE = 'EegSetup'
 
 export default class EegSetup extends GenericBiosignalSetup {
 
-    constructor (id: string, channels: BiosignalChannel[], config?: ConfigBiosignalSetup) {
-        super(id, channels, config)
-        if (!config && id.startsWith('default:')) {
-            const setup = DEFAULTS[id.substring(8) as keyof typeof DEFAULTS]
+    constructor (name: string, channels: BiosignalChannel[], config?: ConfigBiosignalSetup) {
+        super(name, channels, config)
+        if (!config && name.startsWith('default:')) {
+            const setup = DEFAULTS[name.substring(8) as keyof typeof DEFAULTS]
             if (setup) {
                 this.loadConfig(channels, setup)
             }
