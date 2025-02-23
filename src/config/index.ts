@@ -14,7 +14,7 @@ const EegSettings: EegModuleSettings = {
         ignorePatterns: [] as string[],
     },
     defaultMontages: {
-        '10-20': [
+        'default:10-20': [
             ['rec', 'As recorded'],
             ['avg', 'Average reference'],
             ['lon', 'Double banana'],
@@ -22,7 +22,7 @@ const EegSettings: EegModuleSettings = {
         ] as [string, string][],
     },
     defaultSetups: [
-        '10-20',
+        'default:10-20',
     ],
     excludeActiveFromAvg: false,
     frequencyBands: [

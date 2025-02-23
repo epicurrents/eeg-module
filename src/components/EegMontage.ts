@@ -20,18 +20,6 @@ import { type EegResource } from '#types'
 import Log from 'scoped-event-log'
 
 const SCOPE = 'EegMontage'
-
-const DEFAULTS = {} as { [std: string]: { [montage: string]: BiosignalMontageTemplate } }
-// Build default montages.
-DEFAULTS['10-20'] = {}
-import DEFAULT_1020_AVG from '#config/defaults/10-20/montages/avg.json'
-DEFAULTS['10-20']['avg'] = DEFAULT_1020_AVG as BiosignalMontageTemplate
-import DEFAULT_1020_LON from '#config/defaults/10-20/montages/lon.json'
-DEFAULTS['10-20']['lon'] = DEFAULT_1020_LON as BiosignalMontageTemplate
-import DEFAULT_1020_REC from '#config/defaults/10-20/montages/rec.json'
-DEFAULTS['10-20']['rec'] = DEFAULT_1020_REC as BiosignalMontageTemplate
-import DEFAULT_1020_TRV from '#config/defaults/10-20/montages/trv.json'
-DEFAULTS['10-20']['trv'] = DEFAULT_1020_TRV as BiosignalMontageTemplate
 export default class EegMontage extends GenericBiosignalMontage implements BiosignalMontage {
 
     constructor (
@@ -43,20 +31,6 @@ export default class EegMontage extends GenericBiosignalMontage implements Biosi
         config?: ConfigBiosignalMontage,
     ) {
         super(name, recording, setup, template, manager, config)
-        if (!template && name.startsWith('default:')) {
-            // Try to use default config.
-            const confParams = name.split(':')
-            // Check that configuration is valid.
-            if (
-                confParams.length !== 3 ||
-                !Object.hasOwn(DEFAULTS, confParams[1]) ||
-                !Object.hasOwn(DEFAULTS[confParams[1]], confParams[2])
-            ) {
-                Log.error(`Given default configuration ${name} is not supported.`, SCOPE)
-            } else {
-                this.setupChannels(DEFAULTS[confParams[1]][confParams[2]])
-            }
-        }
     }
 
     ///////////////////////////////////////////////////

@@ -40,6 +40,28 @@ import { EegMontage, EegSetup, EegSourceChannel, EegVideo } from './components'
 import type { EegResource } from './types'
 import Log from 'scoped-event-log'
 
+// Build default setups.
+const DEFAULTS = {} as {
+    [setup: string]: {
+        setup: ConfigBiosignalSetup
+        montages: { [montage: string]: BiosignalMontageTemplate }
+    }
+}
+import DEFAULT_1020 from '#config/defaults/10-20/setup.json'
+import DEFAULT_1020_AVG from '#config/defaults/10-20/montages/avg.json'
+import DEFAULT_1020_LON from '#config/defaults/10-20/montages/lon.json'
+import DEFAULT_1020_REC from '#config/defaults/10-20/montages/rec.json'
+import DEFAULT_1020_TRV from '#config/defaults/10-20/montages/trv.json'
+DEFAULTS['default:10-20'] = {
+    setup: DEFAULT_1020 as ConfigBiosignalSetup,
+    montages: {
+        avg: DEFAULT_1020_AVG as BiosignalMontageTemplate,
+        lon: DEFAULT_1020_LON as BiosignalMontageTemplate,
+        rec: DEFAULT_1020_REC as BiosignalMontageTemplate,
+        trv: DEFAULT_1020_TRV as BiosignalMontageTemplate,
+    },
+}
+
 // Additional montages.
 const EXTRA = [] as { montage: BiosignalMontageTemplate, setup: string | BiosignalSetup }[]
 import EXTRA_1020_LAPLACIAN from '#config/extra/montages/10-20-laplacian.json'
@@ -235,23 +257,21 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
         calculateSignalOffsets(this._channels, Object.assign({ isRaw: true, layout: [] }, EEG_SETTINGS))
         // Add default setups and montages.
         for (const name of EEG_SETTINGS.defaultSetups) {
-            const setup = this.addSetup(`default:${name}`, this._channels)
-            Log.debug(`Added setup default:${name}.`, SCOPE)
-            Log.debug(`Added raw signals montage for setup default:${name}.`, SCOPE)
+            const template = DEFAULTS[name]?.setup
+            if (!template) {
+                Log.error(`Default setup '${name}' not found.`, SCOPE)
+                continue
+            }
+            const setup = this.addSetup(template, this._channels)
+            Log.debug(`Added default setup '${name}'.`, SCOPE)
             const montages = EEG_SETTINGS.defaultMontages[
-                setup.name.split(':')[1] as keyof typeof EEG_SETTINGS.defaultMontages
+                setup.name as keyof typeof EEG_SETTINGS.defaultMontages
             ]
             for (const montage of montages) {
-                if (!montage[0].includes(':')) {
-                    const newMontage = await this.addMontage(`${setup.name}:${montage[0]}`, montage[1], setup)
-                    if (newMontage) {
-                        Log.debug(`Added montage ${montage[0]} for setup ${setup.name}.`, SCOPE)
-                    }
-                } else {
-                    const newMontage = await this.addMontage(`default:${montage[0]}`, montage[1], setup)
-                    if (newMontage) {
-                        Log.debug(`Added montage ${montage[1]} for setup default:${montage[0]}.`, SCOPE)
-                    }
+                const template = DEFAULTS[name]?.montages[montage[0]]
+                const newMontage = await this.addMontage(`${setup.name}:${montage[0]}`, montage[1], setup, template)
+                if (newMontage) {
+                    Log.debug(`Added montage '${montage[0]}' for setup '${setup.name}'.`, SCOPE)
                 }
                 if (this._recordMontage === null && this._montages.length) {
                     this._recordMontage = this._montages[0]
@@ -267,9 +287,13 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
         template?: BiosignalMontageTemplate,
         config?: ConfigMapChannels
     ) {
+        const existing = this.montages.find(m => m.name === name)
+        if (existing) {
+            Log.debug(`Montage '${name}' already exists.`, SCOPE)
+            return existing
+        }
         const getMontage = async () => {
             if (typeof setup === 'string') {
-                console.log(this._setups)
                 const cachedSetup = this._setups.find(s => s.name === setup)
                 if (!cachedSetup) {
                     Log.error(`Setup ${setup} not found.`, SCOPE)
@@ -318,8 +342,13 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
         return montage
     }
 
-    addSetup (name: string, channels: BiosignalChannel[], config?: ConfigBiosignalSetup) {
-        const setup = new EegSetup(name, channels, config)
+    addSetup (config: ConfigBiosignalSetup, channels?: BiosignalChannel[]) {
+        const existing = this._setups.find(s => s.name === config.name)
+        if (existing) {
+            Log.debug(`Setup '${name}' already exists.`, SCOPE)
+            return existing
+        }
+        const setup = new EegSetup(channels || this._channels, config)
         this._setups.push(setup)
         if (!this._setup) {
             // Store common sampling rate.

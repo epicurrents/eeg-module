@@ -1,4 +1,5 @@
 {
+    "name": "default:10-20",
     "label": "Default 10-20",
     "description": ["A generic setup for parsing 10-20 electrode configuration records"],
     "channels":  [
