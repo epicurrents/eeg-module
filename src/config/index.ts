@@ -78,5 +78,6 @@ const EegSettings: EegModuleSettings = {
     },
     showHiddenChannels: false,
     showMissingChannels: false,
+    unloadOnClose: false,
 }
 export default EegSettings
