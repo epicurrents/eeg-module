@@ -178,13 +178,11 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
                 }
                 await this.cacheSignals()
                 this.dispatchEvent(BiosignalResourceEvents.SIGNAL_CACHING_COMPLETE)
-            } else if (!this.isActive) {
-                //this.releaseBuffers()
             }
         }, this.id)
         this.addEventListener(AssetEvents.DEACTIVATE, async () => {
             if (this.#SETTINGS?.unloadOnClose && this._service?.isReady) {
-                await this.releaseBuffers()
+                await this.unload()
             }
         }, this.id)
     }
@@ -432,12 +430,10 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
     }
 
     async releaseBuffers () {
-        this.dispatchEvent(BiosignalResourceEvents.RELEASE_BUFFERS, 'before')
         await super.releaseBuffers()
         this._annotations.length = 0
         this._dataGaps.clear()
         this._videos.length = 0
         Log.debug(`All buffers released from ${this.name}`, SCOPE)
-        this.dispatchEvent(BiosignalResourceEvents.RELEASE_BUFFERS, 'after')
     }
 }
