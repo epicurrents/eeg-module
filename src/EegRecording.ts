@@ -98,7 +98,7 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
             Log.error(`EEG settings not found in the global Epicurrents runtime.`, SCOPE)
         }
         this._headers = header
-        if (loaderManager) {
+        if (loaderManager && this.#SETTINGS?.useMemoryManager) {
             this.setMemoryManager(loaderManager)
         }
         if (config.formatHeader) {
@@ -119,7 +119,7 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
             ))
         }
         // Service is set here and should only become null if the resource is destroyed.
-        this._service = new EegService(this, fileWorker, loaderManager)
+        this._service = new EegService(this, fileWorker, this._memoryManager || undefined)
         this._startTime = header.recordingStartTime
         this._dataDuration = header.dataUnitCount*header.dataUnitDuration
         this._totalDuration = this._dataDuration

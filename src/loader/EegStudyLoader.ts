@@ -50,13 +50,9 @@ export default class EegStudyLoader extends BiosignalStudyLoader {
             SCOPE)
             return null
         }
-        const worker = this._fileReader?.getFileTypeWorker()
+        const worker = this._fileReader?.getFileTypeWorker('eeg')
         if (!worker) {
             Log.error(`Study loader does not have a file worker.`, SCOPE)
-            return null
-        }
-        if (!worker) {
-            Log.error(`Study loader doesn't have a file type loader.`, SCOPE)
             return null
         }
         const recording = new EegRecording(

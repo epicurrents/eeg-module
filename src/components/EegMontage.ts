@@ -30,6 +30,8 @@ export default class EegMontage extends GenericBiosignalMontage implements Biosi
         manager?: MemoryManager,
         config?: ConfigBiosignalMontage,
     ) {
+        // Default to the eeg-montage worker.
+        config = Object.assign({ overrideWorker: 'eeg-montage' }, config)
         super(name, recording, setup, template, manager, config)
     }
 
