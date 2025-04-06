@@ -90,7 +90,7 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
         channels: BiosignalChannel[],
         header: GenericBiosignalHeader,
         fileWorker: Worker,
-        loaderManager?: MemoryManager,
+        memoryManager?: MemoryManager,
         config = {} as BiosignalConfig
     ) {
         super(name, config?.modality || 'eeg')
@@ -98,8 +98,8 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
             Log.error(`EEG settings not found in the global Epicurrents runtime.`, SCOPE)
         }
         this._headers = header
-        if (loaderManager && this.#SETTINGS?.useMemoryManager) {
-            this.setMemoryManager(loaderManager)
+        if (memoryManager && this.#SETTINGS?.useMemoryManager) {
+            this.setMemoryManager(memoryManager)
         }
         if (config.formatHeader) {
             this._formatHeader = config.formatHeader
