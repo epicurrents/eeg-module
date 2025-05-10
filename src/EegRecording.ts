@@ -62,15 +62,19 @@ DEFAULTS['default:10-20'] = {
 }
 
 // Additional montages.
-const EXTRA = [] as { montage: BiosignalMontageTemplate, setup: string | BiosignalSetup }[]
 import EXTRA_1020_LAPLACIAN from '#config/extra/montages/10-20-laplacian.json'
-EXTRA.push({ montage: EXTRA_1020_LAPLACIAN as BiosignalMontageTemplate, setup: '10-20' })
 
 /**
  * EEG recording resource.
  * @emits signal-caching-complete - When all signals have been cached from data source.
  */
 export default class EegRecording extends GenericBiosignalResource implements EegResource {
+    static readonly EXTRA_MONTAGES = new Map<string, BiosignalMontageTemplate[]>([
+        ['default:10-20', [
+            EXTRA_1020_LAPLACIAN as BiosignalMontageTemplate,
+        ]],
+    ])
+    static readonly EXTRA_SETUPS = [] as ConfigBiosignalSetup[]
     #SETTINGS = (window.__EPICURRENTS__?.RUNTIME?.SETTINGS.modules.eeg as EegModuleSettings) || null
     protected _activeMontage: BiosignalMontage | null = null
     /** The display view start can be optionally updated here after signals are processed and actually displayed. */
@@ -164,17 +168,22 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
                 }
                 // Add default setups and montages first as some of the extra montages may use them.
                 await this.addDefaultSetupsAndMontages()
+                // Add possible extra setups.
+                for (const setup of EegRecording.EXTRA_SETUPS) {
+                    this.addSetup(setup, this._channels)
+                    Log.debug(`Added extra setup '${setup.name}'.`, SCOPE)
+                }
                 // Add possible extra montages.
-                for (const { montage, setup } of EXTRA) {
-                    const setupLabel = typeof setup === 'string'
-                                     ? `default:${setup}`
-                                     : setup.name
-                    await this.addMontage(
-                        `${setupLabel}:${montage.label}`,
-                        montage.label,
-                        typeof setup === 'string' ? setupLabel : setup,
-                        montage
-                    )
+                for (const [setup, extraMontages] of EegRecording.EXTRA_MONTAGES) {
+                    for (const montage of extraMontages) {
+                        await this.addMontage(
+                            `${setup}:${montage.label}`,
+                            montage.label,
+                            setup,
+                            montage
+                        )
+                        Log.debug(`Added extra montage '${montage.label}' for setup '${setup}'.`, SCOPE)
+                    }
                 }
                 await this.cacheSignals()
                 this.dispatchEvent(BiosignalResourceEvents.SIGNAL_CACHING_COMPLETE)
@@ -285,7 +294,7 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
     ) {
         let montage = this.montages.find(m => m.name === name) || null
         if (this._mutexProps && this._service?.bufferRangeStart === INDEX_NOT_ASSIGNED) {
-            Log.error(`Cannot add a montage before buffer has been intialized.`, SCOPE)
+            Log.error(`Cannot add a montage before buffer has been initialized.`, SCOPE)
             return null
         }
         if (montage) {
