@@ -177,7 +177,7 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
                 for (const [setup, extraMontages] of EegRecording.EXTRA_MONTAGES) {
                     for (const montage of extraMontages) {
                         await this.addMontage(
-                            `${setup}:${montage.label}`,
+                            `${setup}:${montage.name}`,
                             montage.label,
                             setup,
                             montage
