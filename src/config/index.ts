@@ -76,6 +76,10 @@ const EegSettings: EegModuleSettings = {
         cacheMax: 2,
         preCache: false,
     },
+    scale: {
+        availableValues: [-3, -2, -1, 0, 1, 2, 3],
+        default: 0,
+    },
     showHiddenChannels: false,
     showMissingChannels: false,
     unloadOnClose: false,

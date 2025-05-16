@@ -25,12 +25,12 @@
         { "name": "eog", "pattern": "(.*?)eog(.*)", "label": "EOG", "modality": "eog", "averaged": false, "unit": "uV" },
         { "name": "loc", "pattern": "(.*?)loc(.*)", "label": "LOC", "modality": "eog", "averaged": false, "unit": "uV" },
         { "name": "roc", "pattern": "(.*?)roc(.*)", "label": "ROC", "modality": "eog", "averaged": false, "unit": "uV" },
-        { "name": "ekg", "pattern": "(.*?)(ecg|ekg)([^lr].*|$)", "label": "EKG", "modality": "ekg", "averaged": false, "amplification": 0.1, "unit": "uV" },
-        { "name": "ecgl", "pattern": "(.*?)(ecg|ekg)l(.*)", "label": "EKG-L", "modality": "ekg", "averaged": false, "amplification": 0.1, "unit": "uV" },
-        { "name": "ecgr", "pattern": "(.*?)(ecg|ekg)r(.*)", "label": "EKG-R", "modality": "ekg", "averaged": false, "amplification": 0.1, "unit": "uV" },
+        { "name": "ekg", "pattern": "(.*?)(ecg|ekg)([^lr].*|$)", "label": "EKG", "modality": "ekg", "averaged": false, "scale": -1, "unit": "uV" },
+        { "name": "ecgl", "pattern": "(.*?)(ecg|ekg)l(.*)", "label": "EKG-L", "modality": "ekg", "averaged": false, "scale": -1, "unit": "uV" },
+        { "name": "ecgr", "pattern": "(.*?)(ecg|ekg)r(.*)", "label": "EKG-R", "modality": "ekg", "averaged": false, "scale": -1, "unit": "uV" },
         { "name": "emg", "pattern": "(.*?)(emg|musc)(.*)", "label": "EMG", "modality": "emg", "averaged": false, "unit": "uV" },
         { "name": "res", "pattern": "(.*?)(chest|res)(.*)", "label": "RES", "modality": "res", "averaged": false },
-        { "name": "ps", "pattern": "(.*?)photic(.*)", "label": "Photic", "modality": "act", "averaged": false, "polarity": 1, "amplification": 0.0005 },
+        { "name": "ps", "pattern": "(.*?)photic(.*)", "label": "Photic", "modality": "act", "averaged": false, "polarity": 1, "scale": -5 },
         { "name": "annotations", "pattern": "(.*?)annotation(.*)", "label": "Annotations", "modality": "meta", "averaged": false }
     ]
 }
