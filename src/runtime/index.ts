@@ -6,13 +6,14 @@
  */
 
 import { logInvalidMutation } from '@epicurrents/core/dist/runtime'
-import {
-    type DataResource,
-    type RuntimeResourceModule,
-    type SafeObject,
-    type StateManager,
+import type {
+    DataResource,
+    RuntimeResourceModule,
+    RuntimeResourceModuleConfig,
+    SafeObject,
+    StateManager,
 } from '@epicurrents/core/dist/types'
-import { type EegResource } from '../types'
+import type { EegResource } from '../types'
 
 const SCOPE = 'eeg-runtime-module'
 
@@ -22,6 +23,15 @@ const EEG: SafeObject & RuntimeResourceModule = {
         code: 'eeg',
         full: 'Electroencephalography',
         short: 'EEG',
+    },
+    async applyConfiguration (config: RuntimeResourceModuleConfig) {
+        // Module name.
+        if (config.moduleName?.full) {
+            EEG.moduleName.full = config.moduleName.full
+        }
+        if (config.moduleName?.short) {
+            EEG.moduleName.short = config.moduleName.short
+        }
     },
     setPropertyValue (property: string, value: unknown, resource?: DataResource, state?: StateManager) {
         // EEG-specific property mutations

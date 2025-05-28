@@ -36,7 +36,7 @@ export default class EegService extends GenericBiosignalService implements Biosi
     }
 
     constructor (recording: BiosignalResource, worker: Worker, manager?: MemoryManager) {
-        super (recording, worker, manager)
+        super(recording, worker, manager)
         this._worker?.addEventListener('message', this.handleMessage.bind(this))
     }
 

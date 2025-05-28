@@ -1,7 +1,8 @@
 {
+    "name": "trv",
     "label": "Transverse",
-    "description": ["Transverse sequential montage for the 10-20 setup"],
-    "names": [
+    "description": ["Transverse bipolar montage for the 10-20 setup"],
+    "electrodes": [
         "fp1", "f3", "c3", "p3", "f7", "t3", "t5", "o1",
         "fp2", "f4", "c4", "p4", "f8", "t4", "t6", "o2",
         "fz", "cz", "pz",
@@ -38,7 +39,7 @@
     ],
     "reference": {
         "common": false,
-        "description": "transversal adjacent",
+        "description": "transverse adjacent",
         "label": "",
         "type": "measured electrode",
         "unit": "uV"

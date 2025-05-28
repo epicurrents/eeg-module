@@ -10,9 +10,10 @@ import {
     GenericBiosignalHeader,
     GenericBiosignalResource,
 } from '@epicurrents/core'
-import { AssetEvents } from '@epicurrents/core/dist/events'
+import { AssetEvents, BiosignalResourceEvents } from '@epicurrents/core/dist/events'
 import {
     calculateSignalOffsets,
+    INDEX_NOT_ASSIGNED,
     secondsToTimeString,
     timePartsToShortString,
 } from '@epicurrents/core/dist/util'
@@ -24,31 +25,65 @@ import type {
     BiosignalChannel,
     BiosignalConfig,
     BiosignalMontage,
-    BiosignalMontageService,
+    BiosignalMontageTemplate,
+    BiosignalSetup,
     MemoryManager,
     StudyContext,
     SourceChannel,
 } from '@epicurrents/core/dist/types'
 import EegAnnotation from './components/EegAnnotation'
 import EegService from './service/EegService'
-import EegSettings from './config'
 import { EegMontage, EegSetup, EegSourceChannel, EegVideo } from './components'
-import type { EegResource } from './types'
+import type { EegModuleSettings, EegResource } from './types'
 import Log from 'scoped-event-log'
 
 const SCOPE = "EegRecording"
+
+// Build default setups.
+const DEFAULTS = {} as {
+    [setup: string]: {
+        setup: ConfigBiosignalSetup
+        montages: { [montage: string]: BiosignalMontageTemplate }
+    }
+}
+import DEFAULT_1020 from '#config/defaults/10-20/setup.json'
+import DEFAULT_1020_AVG from '#config/defaults/10-20/montages/avg.json'
+import DEFAULT_1020_LON from '#config/defaults/10-20/montages/lon.json'
+import DEFAULT_1020_REC from '#config/defaults/10-20/montages/rec.json'
+import DEFAULT_1020_TRV from '#config/defaults/10-20/montages/trv.json'
+DEFAULTS['default:10-20'] = {
+    setup: DEFAULT_1020 as ConfigBiosignalSetup,
+    montages: {
+        avg: DEFAULT_1020_AVG as BiosignalMontageTemplate,
+        lon: DEFAULT_1020_LON as BiosignalMontageTemplate,
+        rec: DEFAULT_1020_REC as BiosignalMontageTemplate,
+        trv: DEFAULT_1020_TRV as BiosignalMontageTemplate,
+    },
+}
+
+// Additional montages.
+import EXTRA_1020_LAPLACIAN from '#config/extra/montages/10-20-laplacian.json'
+
+/**
+ * EEG recording resource.
+ * @emits signal-caching-complete - When all signals have been cached from data source.
+ */
 export default class EegRecording extends GenericBiosignalResource implements EegResource {
+    static readonly EXTRA_MONTAGES = new Map<string, BiosignalMontageTemplate[]>([
+        ['default:10-20', [
+            EXTRA_1020_LAPLACIAN as BiosignalMontageTemplate,
+        ]],
+    ])
+    static readonly EXTRA_SETUPS = [] as ConfigBiosignalSetup[]
+    #SETTINGS = (window.__EPICURRENTS__?.RUNTIME?.SETTINGS.modules.eeg as EegModuleSettings) || null
     protected _activeMontage: BiosignalMontage | null = null
     /** The display view start can be optionally updated here after signals are processed and actually displayed. */
     protected _displayViewStart: number = 0
     protected _formatHeader: object | null = null
-    /** Header for this record (TODO: Other file types than EDF?) */
+    /** Header information for this record. */
     protected _headers: GenericBiosignalHeader
-    protected _montageCaches : BiosignalMontageService[] =  []
     protected _montages: BiosignalMontage[] = []
-    protected _recordMontage: BiosignalMontage | null = null
-    protected _service: EegService
-    protected _setups: EegSetup[] = []
+    protected _setups: BiosignalSetup[] = []
     protected _videos: EegVideo[] = []
 
     /**
@@ -59,13 +94,16 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
         channels: BiosignalChannel[],
         header: GenericBiosignalHeader,
         fileWorker: Worker,
-        loaderManager?: MemoryManager,
+        memoryManager?: MemoryManager,
         config = {} as BiosignalConfig
     ) {
         super(name, config?.modality || 'eeg')
+        if (!this.#SETTINGS) {
+            Log.error(`EEG settings not found in the global Epicurrents runtime.`, SCOPE)
+        }
         this._headers = header
-        if (loaderManager) {
-            this.setMemoryManager(loaderManager)
+        if (memoryManager && this.#SETTINGS?.useMemoryManager) {
+            this.setMemoryManager(memoryManager)
         }
         if (config.formatHeader) {
             this._formatHeader = config.formatHeader
@@ -84,14 +122,15 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
                 channels[i]
             ))
         }
-        this._service = new EegService(this, fileWorker, loaderManager)
+        // Service is set here and should only become null if the resource is destroyed.
+        this._service = new EegService(this, fileWorker, this._memoryManager || undefined)
         this._startTime = header.recordingStartTime
         this._dataDuration = header.dataUnitCount*header.dataUnitDuration
         this._totalDuration = this._dataDuration
         // Listen to is-active changes.
         this.addEventListener(AssetEvents.ACTIVATE, async () => {
             // Complete loader setup if not already done.
-            if (this.isActive && !this._service.isReady && this._state === 'ready') {
+            if (!this._service?.isReady && this._state === 'ready') {
                 if (this._memoryManager) {
                     // Calculate needed memory to load the entire recording.
                     let totalMem = 4 // For lock field.
@@ -99,34 +138,63 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
                     for (const chan of channels) {
                         totalMem += chan.sampleCount + dataFieldsLen
                     }
-                    // Let memory allocation happen in the background.
-                    this._service.requestMemory(totalMem).then(success => {
-                        if (success) {
-                            Log.debug(`Memory allocation complete.`, SCOPE)
-                            this.setupMutex().then((success) => {
-                                if (success) {
-                                    Log.debug(`Buffer setup complete.`, SCOPE)
-                                    this.addDefaultSetupsAndMontages()
-                                    this.startCachingSignals()
-                                }
-                            })
-                        } else {
-                            Log.error(`Memory allocation failed.`, SCOPE)
-                            this.state = 'error'
-                            this.errorReason = 'Memory allocation failed'
-                            this.isActive = false
-                        }
-                    })
+                    const memorySuccess = await this._service?.requestMemory(totalMem)
+                    if (!memorySuccess) {
+                        Log.error(`Memory allocation failed.`, SCOPE)
+                        this.state = 'error'
+                        this.errorReason = 'Memory allocation failed'
+                        this.isActive = false
+                        return
+                    }
+                    Log.debug(`Memory allocation complete.`, SCOPE)
+                    const mutex = await this.setupMutex()
+                    if (!mutex) {
+                        Log.error(`Mutex setup failed.`, SCOPE)
+                        this.state = 'error'
+                        this.errorReason = 'Mutex setup failed'
+                        this.isActive = false
+                        return
+                    }
+                    Log.debug(`Buffer setup complete.`, SCOPE)
                 } else {
-                    this.setupCache().then(result => {
-                        if (result) {
-                            this.addDefaultSetupsAndMontages()
-                            this.startCachingSignals()
-                        }
-                    })
+                    const dataCache = await this.setupCache()
+                    if (!dataCache) {
+                        Log.error(`Data cache setup failed.`, SCOPE)
+                        this.state = 'error'
+                        this.errorReason = 'Data cache setup failed'
+                        this.isActive = false
+                        return
+                    }
                 }
-            } else if (!this.isActive) {
-                //this.releaseBuffers()
+                // Add default setups and montages first as some of the extra montages may use them.
+                await this.addDefaultSetupsAndMontages()
+                // Add possible extra setups.
+                for (const setup of EegRecording.EXTRA_SETUPS) {
+                    this.addSetup(setup, this._channels)
+                    Log.debug(`Added extra setup '${setup.name}'.`, SCOPE)
+                }
+                // Add possible extra montages.
+                for (const [setup, extraMontages] of EegRecording.EXTRA_MONTAGES) {
+                    for (const montage of extraMontages) {
+                        if (
+                            await this.addMontage(
+                                `${setup}:${montage.name}`,
+                                montage.label,
+                                setup,
+                                montage
+                            )
+                        ) {
+                            Log.debug(`Added extra montage '${montage.label}' for setup '${setup}'.`, SCOPE)
+                        }
+                    }
+                }
+                await this.cacheSignals()
+                this.dispatchEvent(BiosignalResourceEvents.SIGNAL_CACHING_COMPLETE)
+            }
+        }, this.id)
+        this.addEventListener(AssetEvents.DEACTIVATE, async () => {
+            if (this.#SETTINGS?.unloadOnClose && this._service?.isReady) {
+                await this.unload()
             }
         }, this.id)
     }
@@ -134,15 +202,13 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
         return super.annotations
     }
     set annotations (annotations: BiosignalAnnotation[]) {
-        if (!window.__EPICURRENTS__?.RUNTIME) {
-            Log.error(`Reference to main application runtime was not found!`, SCOPE)
+        if (!this.#SETTINGS) {
             return
         }
-        const EEG_SETTINGS = window.__EPICURRENTS__.RUNTIME.SETTINGS.modules.eeg as typeof EegSettings
         annotation_loop:
         for (let i=0; i<annotations.length; i++) {
             const anno = annotations[i]
-            for (const ignorePat of EEG_SETTINGS.annotations.ignorePatterns) {
+            for (const ignorePat of this.#SETTINGS.annotations.ignorePatterns) {
                 const patRegExp = new RegExp(ignorePat)
                 if (anno.label.match(patRegExp)) {
                     annotations.splice(i, 1)
@@ -150,7 +216,7 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
                     continue annotation_loop
                 }
             }
-            for (const [convertPat, replaceProps] of EEG_SETTINGS.annotations.convertPatterns) {
+            for (const [convertPat, replaceProps] of this.#SETTINGS.annotations.convertPatterns) {
                 const patRegExp = new RegExp(convertPat)
                 if (anno.label.match(patRegExp)) {
                     anno.annotator = replaceProps.annotator || anno.annotator
@@ -195,83 +261,84 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
     }
 
     async addDefaultSetupsAndMontages () {
-        if (!window.__EPICURRENTS__?.RUNTIME) {
-            Log.error(`Reference to main application runtime was not found, cannot perform setup.`, SCOPE)
+        if (!this.#SETTINGS) {
             return
         }
-        const EEG_SETTINGS = window.__EPICURRENTS__.RUNTIME.SETTINGS.modules.eeg as typeof EegSettings
         // Calculate raw channel offset properties.
-        calculateSignalOffsets(this._channels, Object.assign({ isRaw: true, layout: [] }, EEG_SETTINGS))
+        calculateSignalOffsets(this._channels, Object.assign({ isRaw: true, layout: [] }, this.#SETTINGS))
         // Add default setups and montages.
-        for (const name of EEG_SETTINGS.defaultSetups) {
-            const setup = this.addSetup(`default:${name}`, this._channels)
-            Log.debug(`Added setup default:${name}.`, SCOPE)
-            Log.debug(`Added raw signals montage for setup default:${name}.`, SCOPE)
-            const montages = EEG_SETTINGS.defaultMontages[
-                setup.id.split(':')[1] as keyof typeof EEG_SETTINGS.defaultMontages
+        for (const name of this.#SETTINGS.defaultSetups) {
+            const template = DEFAULTS[name]?.setup
+            if (!template) {
+                Log.error(`Default setup '${name}' not found.`, SCOPE)
+                continue
+            }
+            const setup = this.addSetup(template, this._channels)
+            Log.debug(`Added default setup '${name}'.`, SCOPE)
+            const montages = this.#SETTINGS.defaultMontages[
+                setup.name as keyof EegModuleSettings['defaultMontages']
             ]
             for (const montage of montages) {
-                if (montage[0].indexOf(':') === -1) {
-                    const newMontage = await this.addMontage(`${setup.id}:${montage[0]}`, montage[1], setup)
-                    if (newMontage) {
-                        Log.debug(`Added montage ${montage[0]} for setup ${setup.id}.`, SCOPE)
-                    }
-                } else {
-                    const newMontage = await this.addMontage(`default:${montage[0]}`, montage[1], setup)
-                    if (newMontage) {
-                        Log.debug(`Added montage ${montage[1]} for setup default:${montage[0]}.`, SCOPE)
-                    }
-                }
-                if (this._recordMontage === null && this._montages.length) {
-                    this._recordMontage = this._montages[0]
+                const template = DEFAULTS[name]?.montages[montage[0]]
+                const newMontage = await this.addMontage(`${setup.name}:${montage[0]}`, montage[1], setup, template)
+                if (newMontage) {
+                    Log.debug(`Added montage '${montage[0]}' for setup '${setup.name}'.`, SCOPE)
                 }
             }
         }
     }
 
-    async addMontage (name: string, label: string, setup: EegSetup, config?: ConfigMapChannels) {
-        const getMontage = async () => {
-            if (this._memoryManager && this._mutexProps) {
-                if (this._service.bufferRangeStart === -1) {
-                    Log.error(`Cannot add a montage before buffer has been intialized.`, SCOPE)
-                    return null
-                }
-                const montage = new EegMontage(
-                    name, this, setup,
-                    this._memoryManager,
-                    { label: label }
-                )
-                await montage.setupLoaderWithInputMutex(this._mutexProps)
-                return montage
-            }
-            const montage = new EegMontage(
-                name, this, setup,
-                undefined,
-                { label: label }
-            )
-            if (this._cacheProps) {
-                montage.setupLoaderWithCache(this._cacheProps)
-            }
-            return montage
-        }
-        const montage = await getMontage()
-        if (!montage) {
+    async addMontage (
+        name: string,
+        label: string,
+        setup: BiosignalSetup | string,
+        template?: BiosignalMontageTemplate,
+        config?: ConfigMapChannels
+    ) {
+        let montage = this.montages.find(m => m.name === name) || null
+        if (this._mutexProps && this._service?.bufferRangeStart === INDEX_NOT_ASSIGNED) {
+            Log.error(`Cannot add a montage before buffer has been initialized.`, SCOPE)
             return null
         }
-        if (config) {
-            // Use config to add a montage.
-            montage.mapChannels(config)
+        if (montage) {
+            Log.debug(`Montage '${name}' already exists.`, SCOPE)
         } else {
-            // Use default configuration.
-            montage.mapChannels()
+            if (typeof setup === 'string') {
+                const cachedSetup = this._setups.find(s => s.name === setup)
+                if (!cachedSetup) {
+                    Log.error(`Setup ${setup} not found.`, SCOPE)
+                    return null
+                }
+                setup = cachedSetup
+            }
+            montage = new EegMontage(
+                name, this, setup,
+                template,
+                this._memoryManager || undefined,
+                { label: label }
+            )
+            montage.mapChannels(config)
+            // Add new montage to the list.
+            this._setPropertyValue('montages', [...this.montages, montage])
         }
+        // Set up the proper data cache.
+        if (this._mutexProps) {
+            await montage.setupServiceWithInputMutex(this._mutexProps)
+        } else if (this._cacheProps) {
+            montage.setupServiceWithCache(this._cacheProps)
+        }
+        // Set data gaps.
         montage.setDataGaps(this._dataGaps)
-        this._setPropertyValue('montages', [...this.montages, montage])
         return montage
     }
 
-    addSetup (id: string, channels: BiosignalChannel[], config?: ConfigBiosignalSetup) {
-        const setup = new EegSetup(id, channels, config)
+    addSetup (config: ConfigBiosignalSetup, channels?: BiosignalChannel[]) {
+        const existing = this._setups.find(s => s.name === config.name)
+        if (existing) {
+            Log.debug(`Setup '${name}' already exists.`, SCOPE)
+            return existing
+        }
+        const setup = new EegSetup(channels || this._channels, config)
         this._setups.push(setup)
         if (!this._setup) {
             // Store common sampling rate.
@@ -342,7 +409,7 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
     }
 
     async prepare () {
-        if (this._state === 'error') {
+        if (!this._service || this._state === 'error') {
             return false
         }
         const response = await this._service.setupWorker(
@@ -376,10 +443,9 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
 
     async releaseBuffers () {
         await super.releaseBuffers()
-        this._activeMontage = null
-        this._annotations.splice(0)
-        this._annotations = []
+        this._annotations.length = 0
         this._dataGaps.clear()
-        Log.info(`All buffers released from ${this.name}`, SCOPE)
+        this._videos.length = 0
+        Log.debug(`All buffers released from ${this.name}`, SCOPE)
     }
 }

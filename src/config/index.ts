@@ -6,7 +6,7 @@
  */
 
 import { type BiosignalAnnotation } from '@epicurrents/core/dist/types'
-import { type EegModuleSettings } from '../types'
+import { type EegModuleSettings } from '#types'
 
 const EegSettings: EegModuleSettings = {
     annotations: {
@@ -14,16 +14,15 @@ const EegSettings: EegModuleSettings = {
         ignorePatterns: [] as string[],
     },
     defaultMontages: {
-        '10-20': [
+        'default:10-20': [
             ['rec', 'As recorded'],
             ['avg', 'Average reference'],
-            ['dbn', 'Double banana'],
+            ['lon', 'Double banana'],
             ['trv', 'Transverse'],
-            ['lpl', 'Source Laplacian'],
         ] as [string, string][],
     },
     defaultSetups: [
-        '10-20',
+        'default:10-20',
     ],
     excludeActiveFromAvg: false,
     frequencyBands: [
@@ -77,7 +76,13 @@ const EegSettings: EegModuleSettings = {
         cacheMax: 2,
         preCache: false,
     },
+    scale: {
+        availableValues: [-3, -2, -1, 0, 1, 2, 3],
+        default: 0,
+    },
     showHiddenChannels: false,
     showMissingChannels: false,
+    unloadOnClose: false,
+    useMemoryManager: false,
 }
 export default EegSettings
