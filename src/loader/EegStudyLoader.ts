@@ -11,6 +11,7 @@ import type {
     BiosignalChannel,
     ConfigStudyLoader,
     FileFormatReader,
+    FileFormatWriter,
     SafeObject,
     StudyContext,
 } from '@epicurrents/core/dist/types'
@@ -23,8 +24,8 @@ const SCOPE = 'EegStudyLoader'
 
 export default class EegStudyLoader extends BiosignalStudyLoader {
 
-    constructor (name: string, modalities: string[], loader: FileFormatReader) {
-        super(name, modalities, loader)
+    constructor (name: string, modalities: string[], reader: FileFormatReader, writer?: FileFormatWriter) {
+        super(name, modalities, reader, writer)
     }
 
     get resourceModality () {
