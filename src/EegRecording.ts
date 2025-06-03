@@ -62,6 +62,7 @@ DEFAULTS['default:10-20'] = {
 }
 
 // Additional montages.
+import EXTRA_1020_CZREF from '#config/extra/montages/10-20-cz-ref.json'
 import EXTRA_1020_LAPLACIAN from '#config/extra/montages/10-20-laplacian.json'
 
 /**
@@ -71,6 +72,7 @@ import EXTRA_1020_LAPLACIAN from '#config/extra/montages/10-20-laplacian.json'
 export default class EegRecording extends GenericBiosignalResource implements EegResource {
     static readonly EXTRA_MONTAGES = new Map<string, BiosignalMontageTemplate[]>([
         ['default:10-20', [
+            EXTRA_1020_CZREF as BiosignalMontageTemplate,
             EXTRA_1020_LAPLACIAN as BiosignalMontageTemplate,
         ]],
     ])

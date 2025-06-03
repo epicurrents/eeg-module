@@ -1,0 +1,48 @@
+{
+    "name": "cz-ref",
+    "label": "Cz reference",
+    "description": ["Signals referenced to Cz electrode in the 10-20 system"],
+    "electrodes": [
+        "fp1", "f3", "c3", "p3", "f7", "t3", "t5", "o1",
+        "fp2", "f4", "c4", "p4", "f8", "t4", "t6", "o2",
+        "fz", "cz", "pz",
+        "chest", "ecgl", "ecgr", "ekg", "emg", "eog", "loc", "res", "roc",
+        "ps"
+    ],
+    "channels":  [
+        { "name": "fp2", "label": "Fp2-Cz", "active": "fp2", "reference": ["cz"], "modality": "eeg", "laterality": "d", "unit": "uV" },
+        { "name": "f8", "label": "F8-Cz", "active": "f8", "reference": ["cz"], "modality": "eeg", "laterality": "d", "unit": "uV" },
+        { "name": "t4", "label": "T4-Cz", "active": "t4", "reference": ["cz"], "modality": "eeg", "laterality": "d", "unit": "uV" },
+        { "name": "t6", "label": "T6-Cz", "active": "t6", "reference": ["cz"], "modality": "eeg", "laterality": "d", "unit": "uV" },
+        { "name": "fp1", "label": "Fp1-Cz", "active": "fp1", "reference": ["cz"], "modality": "eeg", "laterality": "s", "unit": "uV" },
+        { "name": "f7", "label": "F7-Cz", "active": "f7", "reference": ["cz"], "modality": "eeg", "laterality": "s", "unit": "uV" },
+        { "name": "t3", "label": "T3-Cz", "active": "t3", "reference": ["cz"], "modality": "eeg", "laterality": "s", "unit": "uV" },
+        { "name": "t5", "label": "T5-Cz", "active": "t5", "reference": ["cz"], "modality": "eeg", "laterality": "s", "unit": "uV" },
+        { "name": "f4", "label": "F4-Cz", "active": "f4", "reference": ["cz"], "modality": "eeg", "laterality": "d", "unit": "uV" },
+        { "name": "c4", "label": "C4-Cz", "active": "c4", "reference": ["cz"], "modality": "eeg", "laterality": "d", "unit": "uV" },
+        { "name": "p4", "label": "P4-Cz", "active": "p4", "reference": ["cz"], "modality": "eeg", "laterality": "d", "unit": "uV" },
+        { "name": "o2", "label": "O2-Cz", "active": "o2", "reference": ["cz"], "modality": "eeg", "laterality": "d", "unit": "uV" },
+        { "name": "f3", "label": "F3-Cz", "active": "f3", "reference": ["cz"], "modality": "eeg", "laterality": "s", "unit": "uV" },
+        { "name": "c3", "label": "C3-Cz", "active": "c3", "reference": ["cz"], "modality": "eeg", "laterality": "s", "unit": "uV" },
+        { "name": "p3", "label": "P3-Cz", "active": "p3", "reference": ["cz"], "modality": "eeg", "laterality": "s", "unit": "uV" },
+        { "name": "o1", "label": "O1-Cz", "active": "o1", "reference": ["cz"], "modality": "eeg", "laterality": "s", "unit": "uV" },
+        { "name": "fz", "label": "Fz-Cz", "active": "fz", "reference": ["cz"], "modality": "eeg", "laterality": "z", "unit": "uV" },
+        { "name": "pz", "label": "Pz-Cz", "active": "pz", "reference": ["cz"], "modality": "eeg", "laterality": "z", "unit": "uV" },
+        { "name": "res", "label": "RESP", "active": "res", "reference": [], "modality": "res", "unit": "uV" },
+        { "name": "eog", "label": "EOG", "active": "eog", "reference": [], "modality": "eog", "unit": "uV" },
+        { "name": "eog-bp", "label": "EOG", "active": "roc", "reference": ["loc"], "modality": "eog", "unit": "uV" },
+        { "name": "ekg", "label": "EKG", "active": "ekg", "reference": [], "modality": "ekg", "unit": "uV" },
+        { "name": "ekg-bp", "label": "EKG", "active": "ecgr", "reference": ["ecgl"], "modality": "ekg", "unit": "uV" },
+        { "name": "emg", "label": "EMG", "active": "emg", "reference": [], "modality": "emg", "unit": "uV" },
+        { "name": "ps", "label": "Photic", "active": "ps", "reference": [], "polarity": 1, "modality": "act" },
+        { "name": "annotations", "label": "Annotations", "active": "annotations", "reference": [], "modality": "meta" }
+    ],
+    "reference": {
+        "common": true,
+        "description": "electrode reference",
+        "label": "REF",
+        "type": "measured common",
+        "unit": "uV"
+    },
+    "layout": [ 4, 4, 4, 4, 2, 7 ]
+}
