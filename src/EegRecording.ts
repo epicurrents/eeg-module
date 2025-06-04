@@ -329,8 +329,8 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
         } else if (this._cacheProps) {
             montage.setupServiceWithCache(this._cacheProps)
         }
-        // Set data gaps.
-        montage.setDataGaps(this._dataGaps)
+        // Set interruptions.
+        montage.setInterruptions(this._interruptions)
         return montage
     }
 
@@ -446,7 +446,7 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
     async releaseBuffers () {
         await super.releaseBuffers()
         this._annotations.length = 0
-        this._dataGaps.clear()
+        this._interruptions.clear()
         this._videos.length = 0
         Log.debug(`All buffers released from ${this.name}`, SCOPE)
     }
