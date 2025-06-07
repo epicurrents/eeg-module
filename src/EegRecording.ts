@@ -412,6 +412,7 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
 
     async prepare () {
         if (!this._service || this._state === 'error') {
+            Log.error(`Cannot prepare the EEG recording, service is not available or is in error state.`, SCOPE)
             return false
         }
         const response = await this._service.setupWorker(
@@ -425,12 +426,12 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
                 return true
             }
             // There was an error when preparing the resource.
-            this._errorReason = 'Resource loading failed'
+            this._errorReason = 'Setting up resource failed'
             this.state = 'error'
             return false
         }).catch(e => {
-            Log.error(`Failed to prepare a worker for the EEG recording.`, SCOPE, e)
-            this._errorReason = 'Resource loading failed'
+            Log.error(`Error when preparing the worker for the EEG recording.`, SCOPE, e)
+            this._errorReason = 'Setting up resource failed'
             this.state = 'error'
             return false
         })
