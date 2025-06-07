@@ -17,8 +17,9 @@ import {
     type StudyContext,
     type WorkerResponse,
 } from '@epicurrents/core/dist/types'
+import { Log } from 'scoped-event-log'
 
-//const SCOPE = "EegService"
+const SCOPE = "EegService"
 
 export default class EegService extends GenericBiosignalService implements BiosignalDataService {
     /** Resolved or rejected based on the success of data loading. */
@@ -53,14 +54,19 @@ export default class EegService extends GenericBiosignalService implements Biosi
         const fileUrl = study.files.filter(
             f => f.modality === 'eeg' && f.role === 'data'
         ).map(file => file.url)[0]
-        const commission = this._commissionWorker(
-            'setup-worker',
-            new Map<string, unknown>([
-                ['header', header.serializable],
-                ['url', fileUrl],
-                ['formatHeader', formatHeader || null],
-            ])
-        )
-        return commission.promise as Promise<SetupStudyResponse>
+        try {
+            const commission = this._commissionWorker(
+                'setup-worker',
+                new Map<string, unknown>([
+                    ['header', header.serializable],
+                    ['url', fileUrl],
+                    ['formatHeader', formatHeader || null],
+                ])
+            )
+            return commission.promise as Promise<SetupStudyResponse>
+        } catch (e: unknown) {
+            Log.error(`Error setting up worker: ${(e as Error).message}.`, SCOPE)
+            return 0
+        }
     }
 }
