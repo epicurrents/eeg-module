@@ -6,7 +6,11 @@
  */
 
 import { GenericMontageChannel } from '@epicurrents/core'
-import { type MontageChannel, type BiosignalChannel } from '@epicurrents/core/dist/types'
+import type {
+    DerivedChannelProperties,
+    MontageChannel,
+    BiosignalChannel,
+} from '@epicurrents/core/dist/types'
 
 //const SCOPE = 'EegMontageChannel'
 
@@ -14,8 +18,8 @@ export default class EegMontageChannel extends GenericMontageChannel implements 
 
     constructor (
         name: string, label: string, modality: string,
-        active: number, reference: number[], averaged: boolean,
-        samplingRate: number, unit: string, visible: boolean,
+        active: number | DerivedChannelProperties, reference: DerivedChannelProperties,
+        averaged: boolean, samplingRate: number, unit: string, visible: boolean,
         extraProperties: Partial<BiosignalChannel> = {}
     ) {
         super(name, label, modality, active, reference, averaged, samplingRate, unit, visible, extraProperties)

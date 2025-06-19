@@ -29,7 +29,7 @@
         { "name": "ecgl", "pattern": "(.*?)(ecg|ekg)l(.*)", "label": "EKG-L", "modality": "ekg", "averaged": false, "scale": -1, "unit": "uV" },
         { "name": "ecgr", "pattern": "(.*?)(ecg|ekg)r(.*)", "label": "EKG-R", "modality": "ekg", "averaged": false, "scale": -1, "unit": "uV" },
         { "name": "emg", "pattern": "(.*?)(emg|musc)(.*)", "label": "EMG", "modality": "emg", "averaged": false, "unit": "uV" },
-        { "name": "res", "pattern": "(.*?)(chest|res)(.*)", "label": "RES", "modality": "res", "averaged": false },
+        { "name": "res", "pattern": "(.*?)(chest|res|rta)(.*)", "label": "RES", "modality": "res", "averaged": false, "scale": -1, "unit": "uV" },
         { "name": "ps", "pattern": "(.*?)photic(.*)", "label": "Photic", "modality": "act", "averaged": false, "polarity": 1, "scale": -5 },
         { "name": "annotations", "pattern": "(.*?)annotation(.*)", "label": "Annotations", "modality": "meta", "averaged": false }
     ]

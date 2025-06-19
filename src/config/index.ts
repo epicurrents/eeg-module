@@ -76,6 +76,7 @@ const EegSettings: EegModuleSettings = {
         cacheMax: 2,
         preCache: false,
     },
+    notchDefaultFrequency: 0,
     scale: {
         availableValues: [-3, -2, -1, 0, 1, 2, 3],
         default: 0,

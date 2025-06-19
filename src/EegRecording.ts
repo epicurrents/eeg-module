@@ -133,6 +133,7 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
         this.addEventListener(AssetEvents.ACTIVATE, async () => {
             // Complete loader setup if not already done.
             if (!this._service?.isReady && this._state === 'ready') {
+                this.dispatchEvent(EegRecording.EVENTS.INITIAL_SETUP, 'before')
                 if (this._memoryManager) {
                     // Calculate needed memory to load the entire recording.
                     let totalMem = 4 // For lock field.
@@ -190,6 +191,8 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
                         }
                     }
                 }
+                // Initial setup complete.
+                this.dispatchEvent(EegRecording.EVENTS.INITIAL_SETUP, 'after')
                 await this.cacheSignals()
                 this.dispatchEvent(BiosignalResourceEvents.SIGNAL_CACHING_COMPLETE)
             }
