@@ -20,5 +20,4 @@ export default class EegSourceChannel extends GenericSourceChannel implements Ge
     ) {
         super(name, label, modality, index, averaged, samplingRate, unit, visible, extraProperties)
     }
-
 }

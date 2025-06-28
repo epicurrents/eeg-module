@@ -6,12 +6,11 @@
  */
 
 import { GenericBiosignalAnnotation } from '@epicurrents/core'
-import {
-    type AnnotationTemplate,
-    type BiosignalAnnotation,
-    type SettingsColor,
+import type {
+    AnnotationTemplate,
+    BiosignalAnnotation,
+    SettingsColor,
 } from '@epicurrents/core/dist/types'
-
 
 //const SCOPE = 'EegAnnotation'
 

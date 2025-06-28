@@ -19,14 +19,14 @@ import {
 } from '@epicurrents/core/dist/util'
 import type {
     AnnotationTemplate,
-    ConfigBiosignalSetup,
-    ConfigMapChannels,
     BiosignalAnnotation,
     BiosignalChannel,
     BiosignalConfig,
     BiosignalMontage,
     BiosignalMontageTemplate,
     BiosignalSetup,
+    ConfigBiosignalSetup,
+    ConfigMapChannels,
     MemoryManager,
     StudyContext,
     SourceChannel,
@@ -67,7 +67,6 @@ import EXTRA_1020_LAPLACIAN from '#config/extra/montages/10-20-laplacian.json'
 
 /**
  * EEG recording resource.
- * @emits signal-caching-complete - When all signals have been cached from data source.
  */
 export default class EegRecording extends GenericBiosignalResource implements EegResource {
     static readonly EXTRA_MONTAGES = new Map<string, BiosignalMontageTemplate[]>([

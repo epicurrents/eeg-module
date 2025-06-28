@@ -24,17 +24,4 @@ export default class EegMontageChannel extends GenericMontageChannel implements 
     ) {
         super(name, label, modality, active, reference, averaged, samplingRate, unit, visible, extraProperties)
     }
-
-    get active () {
-        return this._active
-    }
-
-    get averaged () {
-        return this._averaged
-    }
-
-    get reference () {
-        return this._reference
-    }
-
 }

@@ -6,7 +6,7 @@
  */
 
 import { GenericBiosignalSetup } from '@epicurrents/core'
-import { type BiosignalChannel, type ConfigBiosignalSetup } from '@epicurrents/core/dist/types'
+import type { BiosignalChannel, ConfigBiosignalSetup } from '@epicurrents/core/dist/types'
 //import Log from 'scoped-event-log'
 
 //const SCOPE = 'EegSetup'

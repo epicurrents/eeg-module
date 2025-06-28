@@ -7,15 +7,15 @@
 
 import { INDEX_NOT_ASSIGNED } from '@epicurrents/core/dist/util'
 import { GenericBiosignalService } from '@epicurrents/core'
-import {
-    type BiosignalDataService,
-    type BiosignalHeaderRecord,
-    type BiosignalResource,
-    type MemoryManager,
-    type SetupStudyResponse,
-    type SignalCacheResponse,
-    type StudyContext,
-    type WorkerResponse,
+import type {
+    BiosignalDataService,
+    BiosignalHeaderRecord,
+    BiosignalResource,
+    MemoryManager,
+    SetupStudyResponse,
+    SignalCacheResponse,
+    StudyContext,
+    WorkerResponse,
 } from '@epicurrents/core/dist/types'
 import { Log } from 'scoped-event-log'
 

@@ -7,16 +7,16 @@
 
 import { GenericBiosignalMontage } from '@epicurrents/core'
 import { mapMontageChannels } from '@epicurrents/core/dist/util'
-import {
-    type BiosignalMontage,
-    type BiosignalMontageTemplate,
-    type BiosignalSetup,
-    type ConfigBiosignalMontage,
-    type ConfigMapChannels,
-    type MemoryManager,
+import type {
+    BiosignalMontage,
+    BiosignalMontageTemplate,
+    BiosignalSetup,
+    ConfigBiosignalMontage,
+    ConfigMapChannels,
+    MemoryManager,
 } from '@epicurrents/core/dist/types'
 import EegMontageChannel from './EegMontageChannel'
-import { type EegResource } from '#types'
+import type { EegResource } from '#types'
 import Log from 'scoped-event-log'
 
 const SCOPE = 'EegMontage'
