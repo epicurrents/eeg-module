@@ -15,6 +15,7 @@ import type {
     SetupStudyResponse,
     SignalCacheResponse,
     StudyContext,
+    UrlAccessOptions,
     WorkerResponse,
 } from '@epicurrents/core/dist/types'
 import { Log } from 'scoped-event-log'
@@ -49,7 +50,12 @@ export default class EegService extends GenericBiosignalService implements Biosi
         return (await super.handleMessage(message))
     }
 
-    async setupWorker (header: BiosignalHeaderRecord, study: StudyContext, formatHeader?: unknown) {
+    async setupWorker (
+        header: BiosignalHeaderRecord,
+        study: StudyContext,
+        options?: UrlAccessOptions,
+        formatHeader?: unknown
+    ) {
         // Find the data file; there should only be one.
         const fileUrl = study.files.filter(
             f => f.modality === 'eeg' && f.role === 'data'
@@ -60,6 +66,7 @@ export default class EegService extends GenericBiosignalService implements Biosi
                 new Map<string, unknown>([
                     ['header', header.serializable],
                     ['url', fileUrl],
+                    ['authHeader', options?.authHeader || null],
                     ['formatHeader', formatHeader || null],
                 ])
             )

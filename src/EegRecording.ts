@@ -22,7 +22,6 @@ import type {
     BiosignalAnnotation,
     BiosignalChannel,
     BiosignalConfig,
-    BiosignalMontage,
     BiosignalMontageTemplate,
     BiosignalSetup,
     ConfigBiosignalSetup,
@@ -30,6 +29,7 @@ import type {
     MemoryManager,
     StudyContext,
     SourceChannel,
+    UrlAccessOptions,
 } from '@epicurrents/core/dist/types'
 import EegAnnotation from './components/EegAnnotation'
 import EegService from './service/EegService'
@@ -77,13 +77,11 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
     ])
     static readonly EXTRA_SETUPS = [] as ConfigBiosignalSetup[]
     #SETTINGS = (window.__EPICURRENTS__?.RUNTIME?.SETTINGS.modules.eeg as EegModuleSettings) || null
-    protected _activeMontage: BiosignalMontage | null = null
     /** The display view start can be optionally updated here after signals are processed and actually displayed. */
     protected _displayViewStart: number = 0
     protected _formatHeader: object | null = null
     /** Header information for this record. */
     protected _headers: GenericBiosignalHeader
-    protected _montages: BiosignalMontage[] = []
     protected _setups: BiosignalSetup[] = []
     protected _videos: EegVideo[] = []
 
@@ -287,6 +285,10 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
                 const newMontage = await this.addMontage(`${setup.name}:${montage[0]}`, montage[1], setup, template)
                 if (newMontage) {
                     Log.debug(`Added montage '${montage[0]}' for setup '${setup.name}'.`, SCOPE)
+                    if (!this._recordMontage && montage[0] === 'rec') {
+                        this._recordMontage = newMontage
+                        Log.debug(`Set recording montage to '${newMontage.name}'.`, SCOPE)
+                    }
                 }
             }
         }
@@ -412,7 +414,7 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
         return props
     }
 
-    async prepare () {
+    async prepare (options?: UrlAccessOptions) {
         if (!this._service || this._state === 'error') {
             Log.error(`Cannot prepare the EEG recording, service is not available or is in error state.`, SCOPE)
             return false
@@ -420,6 +422,7 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
         const response = await this._service.setupWorker(
             this._headers,
             this._source as StudyContext,
+            options,
             this._formatHeader || undefined
         ).then(async response => {
             if (response) {

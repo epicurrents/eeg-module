@@ -27,7 +27,7 @@ export default class EegAnnotation extends GenericBiosignalAnnotation {
         // Required properties:
         start: number, duration: number, label: string,
         // Optional properties:
-        annoClass?: BiosignalAnnotation['class'], channels?: number[], priority?: number, text?: string,
+        annoClass?: BiosignalAnnotation['class'], channels?: (number | string)[], priority?: number, text?: string,
         visible?: boolean, background?: boolean, color?: SettingsColor, opacity?: number
     ) {
         super(
