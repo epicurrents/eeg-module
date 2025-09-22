@@ -165,6 +165,7 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
                         this.isActive = false
                         return
                     }
+                    Log.debug(`Data cache setup complete.`, SCOPE)
                 }
                 // Add default setups and montages first as some of the extra montages may use them.
                 await this.addDefaultSetupsAndMontages()
@@ -189,6 +190,7 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
                     }
                 }
                 // Initial setup complete.
+                Log.debug(`EEG recording initial setup complete.`, SCOPE)
                 this.dispatchEvent(EegRecording.EVENTS.INITIAL_SETUP, 'after')
                 await this.cacheSignals()
                 this.dispatchEvent(BiosignalResourceEvents.SIGNAL_CACHING_COMPLETE)

@@ -10,8 +10,8 @@ import { MB_BYTES } from '@epicurrents/core/dist/util'
 import type {
     BiosignalChannel,
     ConfigStudyLoader,
-    FileFormatReader,
-    FileFormatWriter,
+    FileFormatImporter,
+    FileFormatExporter,
     SafeObject,
     StudyContext,
 } from '@epicurrents/core/dist/types'
@@ -24,8 +24,8 @@ const SCOPE = 'EegStudyLoader'
 
 export default class EegStudyLoader extends BiosignalStudyLoader {
 
-    constructor (name: string, modalities: string[], reader: FileFormatReader, writer?: FileFormatWriter) {
-        super(name, modalities, reader, writer)
+    constructor (name: string, modalities: string[], importer: FileFormatImporter, exporter?: FileFormatExporter) {
+        super(name, modalities, importer, exporter)
     }
 
     get resourceModality () {
@@ -51,7 +51,7 @@ export default class EegStudyLoader extends BiosignalStudyLoader {
             SCOPE)
             return null
         }
-        const worker = this._fileReader?.getFileTypeWorker('eeg')
+        const worker = this._studyImporter?.getFileTypeWorker('eeg')
         if (!worker) {
             Log.error(`Study loader does not have a file worker.`, SCOPE)
             return null
