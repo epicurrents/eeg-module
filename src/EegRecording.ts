@@ -373,45 +373,27 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
 
     getMainProperties () {
         const props = super.getMainProperties()
-        if (this.state === 'added') {
-            props.set('Waiting to load...', null)
-        } else if (this.state === 'error') {
-            props.set(this._errorReason, null)
-        } else if (this.state === 'loading') {
-            props.set('Loading metadata...', null)
-        } else if (this.state === 'loaded') {
-            props.set('Initializing...', null)
+        if (props.size) {
+            return props
         } else if (this.state === 'ready') {
-            // Dependencies may still be loading.
-            if (this._dependenciesMissing.length > 0) {
-                const totalDeps = this._dependenciesMissing.length + this._dependenciesReady.length
-                props.set(
-                    'Loading dependency {n}/{t}...',
-                    {
-                        n: totalDeps - this._dependenciesMissing.length + 1,
-                        t: totalDeps,
-                    }
-                )
-            } else {
-                props.set(
-                    this._channels.length.toString(),
-                    {
-                        icon: 'wave',
-                        n: this._channels.length,
-                        title: '{n} signals'
-                    }
-                )
-                const timeParts = secondsToTimeString(this._totalDuration, true) as number[]
-                const timeShort = timePartsToShortString(timeParts)
-                props.set(
-                    timeShort,
-                    {
-                        icon: 'time',
-                        t: secondsToTimeString(this._totalDuration) as string,
-                        title: 'Duration: {t}',
-                    }
-                )
-            }
+            props.set(
+                this._channels.length.toString(),
+                {
+                    icon: 'wave',
+                    n: this._channels.length,
+                    title: '{n} signals'
+                }
+            )
+            const timeParts = secondsToTimeString(this._totalDuration, true) as number[]
+            const timeShort = timePartsToShortString(timeParts)
+            props.set(
+                timeShort,
+                {
+                    icon: 'time',
+                    t: secondsToTimeString(this._totalDuration) as string,
+                    title: 'Duration: {t}',
+                }
+            )
         }
         return props
     }
