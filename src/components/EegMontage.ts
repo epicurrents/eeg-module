@@ -52,6 +52,7 @@ export default class EegMontage extends GenericBiosignalMontage implements Biosi
         const chanProps = mapMontageChannels(this._setup, channelConfig)
         this.channels = chanProps.map((chan) => {
             return new EegMontageChannel(
+                this,
                 chan.name,
                 chan.label,
                 chan.modality,

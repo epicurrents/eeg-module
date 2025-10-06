@@ -12,7 +12,7 @@ import type {
     SettingsColor,
 } from '@epicurrents/core/dist/types'
 
-//const SCOPE = 'EegAnnotation'
+const SCOPE = 'EegAnnotation'
 
 export default class EegAnnotation extends GenericBiosignalAnnotation {
 
@@ -31,7 +31,7 @@ export default class EegAnnotation extends GenericBiosignalAnnotation {
         visible?: boolean, background?: boolean, color?: SettingsColor, opacity?: number
     ) {
         super(
-            'EegAnnotation', start, duration, label,
+            SCOPE, start, duration, label,
             annoClass, channels, priority, text, visible, background, color, opacity
         )
     }

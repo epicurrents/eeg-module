@@ -1,15 +1,16 @@
 import type {
-    SourceChannel,
-    BiosignalHeaderSignal,
-    BiosignalResource,
-    BiosignalStudyProperties,
-    VideoAttachment,
     BiosignalChannel,
+    BiosignalHeaderSignal,
+    BiosignalMontage,
     BiosignalMontageTemplate,
+    BiosignalResource,
     BiosignalSetup,
+    BiosignalStudyProperties,
     ConfigBiosignalSetup,
     ConfigMapChannels,
-    BiosignalMontage,
+    MontageChannel,
+    SourceChannel,
+    VideoAttachment,
 } from '@epicurrents/core/dist/types'
 
 /**
@@ -17,6 +18,19 @@ import type {
  */
 export type EegHeaderSignal = BiosignalHeaderSignal & {
     signal: Float32Array
+}
+/** MontageChannel extended with additional EEG montage channel properties. */
+export type EegMontageChannelProperties = MontageChannel & {
+    /**
+     * The montage channel in the corresponding contralateral (homologous) position.
+     * 
+     * The matching depends on the channel names following the international standard (10-x) EEG naming conventions.
+     * The channel name should start with the standard channel designator (e.g. 'F3', 'C4', 'Pz' etc.) and may be
+     * followed by additional suffixes. The matching is case-insensitive.
+     * 
+     * Results may be unpredictable if the naming is non-standard.
+     */
+    contralateralChannelPair: EegMontageChannelProperties | null
 }
 /**
  * Resource containing primarily EEG signals.
