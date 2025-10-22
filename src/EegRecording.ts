@@ -271,7 +271,7 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
         // Calculate raw channel offset properties.
         calculateSignalOffsets(this._channels, Object.assign({ isRaw: true, layout: [] }, this.#SETTINGS))
         // Add default setups and montages.
-        for (const name of this.#SETTINGS.defaultSetups) {
+        for (const name of this.#SETTINGS.defaultSetups || []) {
             const template = DEFAULTS[name]?.setup
             if (!template) {
                 Log.error(`Default setup '${name}' not found.`, SCOPE)
@@ -279,10 +279,10 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
             }
             const setup = this.addSetup(template, this._channels)
             Log.debug(`Added default setup '${name}'.`, SCOPE)
-            const montages = this.#SETTINGS.defaultMontages[
+            const montages = this.#SETTINGS.defaultMontages?.[
                 setup.name as keyof EegModuleSettings['defaultMontages']
             ]
-            for (const montage of montages) {
+            for (const montage of montages || []) {
                 const template = DEFAULTS[name]?.montages[montage[0]]
                 const newMontage = await this.addMontage(`${setup.name}:${montage[0]}`, montage[1], setup, template)
                 if (newMontage) {

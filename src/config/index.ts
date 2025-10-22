@@ -37,20 +37,6 @@ const EegSettings: EegModuleSettings = {
         eog: ['highpass', 'lowpass', 'notch'],
     },
     filterPaddingSeconds: 10,
-    filters: {
-        highpass: {
-            availableValues: [0, 0.1, 0.3, 0.5, 0.7, 1, 1.5, 2, 2.5, 3, 4, 5],
-            default: 0.3,
-        },
-        lowpass: {
-            availableValues: [0, 10, 15, 20, 25, 30, 35, 40, 50, 60, 70, 100],
-            default: 70,
-        },
-        notch: {
-            availableValues: [0, 50, 60],
-            default: 0,
-        },
-    },
     labelMatchers: {
         eeg: [
             'fp1', 'f3', 'c3', 'p3', 'f7', 't3', 't5', 'o1',
@@ -72,15 +58,7 @@ const EegSettings: EegModuleSettings = {
     },
     maxNewSignalCacheCycleLength: 300,
     minNewSignalCacheCycleLength: 60,
-    montages: {
-        cacheMax: 2,
-        preCache: false,
-    },
-    notchDefaultFrequency: 0,
-    scale: {
-        availableValues: [-3, -2, -1, 0, 1, 2, 3],
-        default: 0,
-    },
+    precacheMontages: 0,
     showHiddenChannels: false,
     showMissingChannels: false,
     unloadOnClose: false,
