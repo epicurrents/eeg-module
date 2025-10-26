@@ -1,5 +1,6 @@
 import {
-    EegAnnotation,
+    EegEvent,
+    EegLabel,
     EegMontage,
     EegMontageChannel,
     EegSetup,
@@ -15,7 +16,8 @@ import settings from './config'
 const modality = 'eeg'
 
 export {
-    EegAnnotation,
+    EegEvent,
+    EegLabel,
     EegMontage,
     EegMontageChannel,
     EegRecording,

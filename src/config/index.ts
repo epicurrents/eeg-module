@@ -5,39 +5,11 @@
  * @license    Apache-2.0
  */
 
-import { type BiosignalAnnotation } from '@epicurrents/core/dist/types'
+import type { BiosignalAnnotationEvent, BiosignalAnnotationLabel } from '@epicurrents/core/dist/types'
 import { type EegModuleSettings } from '#types'
 
 const EegSettings: EegModuleSettings = {
-    annotations: {
-        convertPatterns: [] as [string, BiosignalAnnotation][],
-        ignorePatterns: [] as string[],
-    },
-    defaultMontages: {
-        'default:10-20': [
-            ['rec', 'As recorded'],
-            ['avg', 'Average reference'],
-            ['lon', 'Double banana'],
-            ['trv', 'Transverse'],
-        ] as [string, string][],
-    },
-    defaultSetups: [
-        'default:10-20',
-    ],
-    excludeActiveFromAvg: false,
-    frequencyBands: [
-        { name: 'delta', symbol: 'δ', upperLimit: 4 },
-        { name: 'theta', symbol: 'θ', upperLimit: 8 },
-        { name: 'alpha', symbol: 'α', upperLimit: 13 },
-        { name: 'beta', symbol: 'β', upperLimit: 30 },
-    ],
-    filterChannelTypes: {
-        eeg: ['highpass', 'lowpass', 'notch'],
-        ekg: ['notch'],
-        eog: ['highpass', 'lowpass', 'notch'],
-    },
-    filterPaddingSeconds: 10,
-    labelMatchers: {
+    channelTypeMatchers: {
         eeg: [
             'fp1', 'f3', 'c3', 'p3', 'f7', 't3', 't5', 'o1',
             'fp2', 'f4', 'c4', 'p4', 'f8', 't4', 't6', 'o2',
@@ -55,6 +27,38 @@ const EegSettings: EegModuleSettings = {
         res: [
             'res',
         ],
+    },
+    defaultMontages: {
+        'default:10-20': [
+            ['rec', 'As recorded'],
+            ['avg', 'Average reference'],
+            ['lon', 'Double banana'],
+            ['trv', 'Transverse'],
+        ] as [string, string][],
+    },
+    defaultSetups: [
+        'default:10-20',
+    ],
+    events: {
+        convertPatterns: [] as [string, BiosignalAnnotationEvent][],
+        ignorePatterns: [] as string[],
+    },
+    excludeActiveFromAvg: false,
+    frequencyBands: [
+        { name: 'delta', symbol: 'δ', upperLimit: 4 },
+        { name: 'theta', symbol: 'θ', upperLimit: 8 },
+        { name: 'alpha', symbol: 'α', upperLimit: 13 },
+        { name: 'beta', symbol: 'β', upperLimit: 30 },
+    ],
+    filterChannelTypes: {
+        eeg: ['highpass', 'lowpass', 'notch'],
+        ekg: ['notch'],
+        eog: ['highpass', 'lowpass', 'notch'],
+    },
+    filterPaddingSeconds: 10,
+    labels: {
+        convertPatterns: [] as [string, BiosignalAnnotationLabel][],
+        ignorePatterns: [] as string[],
     },
     maxNewSignalCacheCycleLength: 300,
     minNewSignalCacheCycleLength: 60,

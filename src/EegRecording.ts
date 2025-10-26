@@ -18,8 +18,9 @@ import {
     timePartsToShortString,
 } from '@epicurrents/core/dist/util'
 import type {
-    AnnotationTemplate,
-    BiosignalAnnotation,
+    AnnotationEventTemplate,
+    AnnotationLabelTemplate,
+    BiosignalAnnotationEvent,
     BiosignalChannel,
     BiosignalConfig,
     BiosignalMontageTemplate,
@@ -31,7 +32,8 @@ import type {
     SourceChannel,
     UrlAccessOptions,
 } from '@epicurrents/core/dist/types'
-import EegAnnotation from './components/EegAnnotation'
+import EegEvent from './components/EegEvent'
+import EegLabel from './components/EegLabel'
 import EegService from './service/EegService'
 import { EegMontage, EegSetup, EegSourceChannel, EegVideo } from './components'
 import type { EegModuleSettings, EegResource } from './types'
@@ -202,39 +204,39 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
             }
         }, this.id)
     }
-    get annotations () {
-        return super.annotations
+    get events () {
+        return super.events
     }
-    set annotations (annotations: BiosignalAnnotation[]) {
+    set events (events: BiosignalAnnotationEvent[]) {
         if (!this.#SETTINGS) {
             return
         }
         annotation_loop:
-        for (let i=0; i<annotations.length; i++) {
-            const anno = annotations[i]
-            for (const ignorePat of this.#SETTINGS.annotations.ignorePatterns) {
+        for (let i=0; i<events.length; i++) {
+            const evt = events[i]
+            for (const ignorePat of this.#SETTINGS.events.ignorePatterns) {
                 const patRegExp = new RegExp(ignorePat)
-                if (anno.label.match(patRegExp)) {
-                    annotations.splice(i, 1)
+                if (evt.label.match(patRegExp)) {
+                    events.splice(i, 1)
                     i--
                     continue annotation_loop
                 }
             }
-            for (const [convertPat, replaceProps] of this.#SETTINGS.annotations.convertPatterns) {
+            for (const [convertPat, replaceProps] of this.#SETTINGS.events.convertPatterns) {
                 const patRegExp = new RegExp(convertPat)
-                if (anno.label.match(patRegExp)) {
-                    anno.annotator = replaceProps.annotator || anno.annotator
-                    anno.channels = replaceProps.channels
-                    anno.class = replaceProps.class
-                    anno.label = anno.label.replace(patRegExp, replaceProps.label)
-                    anno.priority = replaceProps.priority
-                    anno.text = replaceProps.text
-                    anno.type = replaceProps.type
+                if (evt.label.match(patRegExp)) {
+                    evt.annotator = replaceProps.annotator || evt.annotator
+                    evt.channels = replaceProps.channels
+                    evt.class = replaceProps.class
+                    evt.label = evt.label.replace(patRegExp, replaceProps.label)
+                    evt.priority = replaceProps.priority
+                    evt.text = replaceProps.text
+                    evt.type = replaceProps.type
                     // Don't break after first, label may match multiple patterns.
                 }
             }
         }
-        super.annotations = annotations
+        super.events = events
     }
     get channels () {
         return this._channels as SourceChannel[]
@@ -255,14 +257,6 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
     ///////////////////////////////////////////////////
     //                   METHODS                     //
     ///////////////////////////////////////////////////
-
-    addAnnotationsFromTemplates (...templates: AnnotationTemplate[]) {
-        const annotations = [] as EegAnnotation[]
-        for (const tpl of templates) {
-            annotations.push(EegAnnotation.fromTemplate(tpl))
-        }
-        this.addAnnotations(...annotations)
-    }
 
     async addDefaultSetupsAndMontages () {
         if (!this.#SETTINGS) {
@@ -294,6 +288,22 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
                 }
             }
         }
+    }
+
+    addEventsFromTemplates (...templates: AnnotationEventTemplate[]) {
+        const events = [] as EegEvent[]
+        for (const tpl of templates) {
+            events.push(EegEvent.fromTemplate(tpl))
+        }
+        this.addEvents(...events)
+    }
+
+    addLabelsFromTemplates (...templates: AnnotationLabelTemplate[]) {
+        const labels = [] as EegLabel[]
+        for (const tpl of templates) {
+            labels.push(EegLabel.fromTemplate(tpl))
+        }
+        this.addLabels(...labels)
     }
 
     async addMontage (
@@ -435,8 +445,9 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
 
     async releaseBuffers () {
         await super.releaseBuffers()
-        this._annotations.length = 0
+        this._events.length = 0
         this._interruptions.clear()
+        this._labels.length = 0
         this._videos.length = 0
         Log.debug(`All buffers released from ${this.name}`, SCOPE)
     }

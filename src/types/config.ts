@@ -11,9 +11,8 @@ import {
 } from '@epicurrents/core/dist/types'
 
 export type EegModuleSettings = BaseModuleSettings & CommonBiosignalSettings & {
-    excludeActiveFromAvg: boolean
-    frequencyBands: { name: string, symbol: string, upperLimit: number }[]
-    labelMatchers: {
+    /** List of channel types and their (known) corresponding signal labels. */
+    channelTypeMatchers: {
         /** All possible signal labels that should be classified as EEG. */
         eeg: string[]
         /** All possible signal labels that should be classified as EKG. */
@@ -25,6 +24,10 @@ export type EegModuleSettings = BaseModuleSettings & CommonBiosignalSettings & {
         /** All possible signal labels that should be classified as respiration. */
         res: string[]
     }
+    /** Should the active channels be excluded from the average calculation? */
+    excludeActiveFromAvg: boolean
+    /** Definition of EEG frequency bands. */
+    frequencyBands: { name: string, symbol: string, upperLimit: number }[]
     /**
      * Maximum length of new signals in the cache to load in one go when running
      * a new montage signal cache cycle (measured in seconds of signal data).
