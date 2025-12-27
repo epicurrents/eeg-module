@@ -5,7 +5,7 @@
  * @license    Apache-2.0
  */
 
-import type { BiosignalAnnotationEvent, BiosignalAnnotationLabel } from '@epicurrents/core/dist/types'
+import type { BiosignalAnnotationEvent, AnnotationLabel } from '@epicurrents/core/dist/types'
 import { type EegModuleSettings } from '#types'
 
 const EegSettings: EegModuleSettings = {
@@ -57,7 +57,7 @@ const EegSettings: EegModuleSettings = {
     },
     filterPaddingSeconds: 10,
     labels: {
-        convertPatterns: [] as [string, BiosignalAnnotationLabel][],
+        convertPatterns: [] as [string, AnnotationLabel][],
         ignorePatterns: [] as string[],
     },
     maxNewSignalCacheCycleLength: 300,
