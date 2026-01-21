@@ -1,3 +1,4 @@
+/// <reference types="jest" />
 /**
  * Epicurrents EEG module tests.
  * Due to the high level of integration, tests must be run sequentially.
@@ -7,10 +8,10 @@
  * @license    Apache-2.0
  */
 
-import { BiosignalChannel, BiosignalHeaderSignal } from '@epicurrents/core/dist/types'
+import type { BiosignalChannel, BiosignalHeaderSignal } from '@epicurrents/core/dist/types'
 import { EegRecording } from '../src'
 import { EegChannel } from './components/EegChannel'
-import { GenericBiosignalHeaders } from '@epicurrents/core'
+import { GenericBiosignalHeader } from '@epicurrents/core'
 
 /*
  * Mocks.
@@ -52,10 +53,10 @@ let HEADER_INDEX = 0
 
 describe('Epicurrents EEG module tests', () => {
     const channels = [] as BiosignalChannel[]
-    var header: GenericBiosignalHeaders
+    var header: GenericBiosignalHeader
     test("Create a set of EEG channels", () => {
         for (let i=0; i<10; i++) {
-            const chan = new EegChannel(`test-${i}`, `Test channel ${i}`, i, i ? [i-1] : [], false, 100, true)
+            const chan = new EegChannel(`test-${i}`, `Test channel ${i}`, false, 100, true)
             expect(chan).toBeDefined()
             channels.push(chan)
         }
@@ -65,20 +66,21 @@ describe('Epicurrents EEG module tests', () => {
         for (let i=0; i<10; i++) {
             sigProps.push({
                 label: `sig-${i}`,
+                modality: "eeg",
                 name: `Signal ${i}`,
                 physicalUnit: "uV",
-                prefiltering: { highpass: 0, lowpass: 0, notch: 0 },
+                prefiltering: { bandreject: [], highpass: 0, lowpass: 0, notch: 0 },
                 sampleCount: 10_000,
                 samplingRate: 100,
                 sensitivity: 100,
-                type: "eeg",
+                sensor: 'agag-electrode'
             })
         }
-        header = new GenericBiosignalHeaders(
+        header = new GenericBiosignalHeader(
             "eeg",
             `header-${HEADER_INDEX++}`,
             `patient-${HEADER_INDEX}`,
-            100,1, 1, 10,
+            100, 1, 1, 10,
             sigProps
         )
         expect(header).toBeDefined()
@@ -88,6 +90,8 @@ describe('Epicurrents EEG module tests', () => {
             'Test recording', channels, header, new Worker("")
         )
         expect(resource).toBeDefined()
+        expect(resource.channels.length).toBe(10)
+        expect(resource.name).toBe('Test recording')
     })
 })
 

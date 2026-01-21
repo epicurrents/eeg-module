@@ -1,0 +1,24 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    /* Override settings for Jest tests */
+    "target": "es2020",
+    "module": "commonjs",                     /* Jest works better with CommonJS */
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "declaration": false,                     /* No need for .d.ts files in tests */
+    "noUnusedLocals": false,                  /* Allow unused variables in tests */
+    "noUnusedParameters": false,              /* Allow unused parameters in tests */
+    "noImplicitReturns": false,               /* More lenient for test code */
+    "sourceMap": true,                        /* Enable source maps for debugging */
+    "types": ["jest", "node"]                 /* Include Jest and Node type definitions */
+  },
+  "include": [
+    "./tests/**/*",
+    "./src/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist"
+  ]
+}

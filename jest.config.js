@@ -4,28 +4,6 @@ module.exports = {
     rootDir: path.resolve(__dirname, './'),
     coverageDirectory: "<rootDir>/tests/coverage/",
     extensionsToTreatAsEsm: ['.ts'],
-    globals: {
-        'ts-jest': {
-            useESM: true,
-            tsconfig: {
-                "target": "es2020",
-                "module": "esnext",
-                "lib": [
-                    "es5", "es6", "esnext",
-                    "dom", "webworker"
-                ],
-                "strict": true,
-                "noImplicitReturns": true,
-                "moduleResolution": "node",
-                "baseUrl": "./",
-                "paths": {
-                    "#root/*": ["./*"],
-                    "#runtime*": ["src/runtime/index.ts"],
-                    "#*": ["src/*"],
-                }
-            }
-        },
-    },
     moduleFileExtensions: [
         "js",
         "ts",
@@ -44,8 +22,8 @@ module.exports = {
         "<rootDir>/tests/",
     ],
     transform: {
-        "^.+\\.js$": "babel-jest",
-        "^.+\\.ts$": "ts-jest",
+        '^.+\\.ts$': ['ts-jest', { tsconfig: '<rootDir>/tsconfig.test.json', useESM: true }],
+        '^.+\\.js$': 'babel-jest',
     },
     transformIgnorePatterns: [
         "node_modules/(?!(@epicurrents)/)",
