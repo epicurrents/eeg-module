@@ -1,4 +1,5 @@
 import type {
+    BiosignalAnnotationEvent,
     BiosignalChannel,
     BiosignalHeaderSignal,
     BiosignalMontage,
@@ -56,6 +57,9 @@ export interface EegResource extends BiosignalResource {
      * @returns Promise that resolves with true if the worker was prepared successfully.
      */
     prepare (): Promise<boolean>
+}
+
+export type EegResourceEvent = BiosignalAnnotationEvent & {
 }
 
 export type EegStudyProperties = BiosignalStudyProperties & {
