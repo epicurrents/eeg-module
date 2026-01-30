@@ -8,5 +8,11 @@
             "trv": "10-20/montages/trv.json"
         },
         "setup": "10-20/setup.json"
+    },
+    "10-10": {
+        "montages": {
+            "rec": "10-10/montages/rec.json"
+        },
+        "setup": "10-10/setup.json"
     }
 }
