@@ -198,11 +198,6 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
                 this.dispatchEvent(BiosignalResourceEvents.SIGNAL_CACHING_COMPLETE)
             }
         }, this.id)
-        this.addEventListener(AssetEvents.DEACTIVATE, async () => {
-            if (this.#SETTINGS?.unloadOnClose && this._service?.isReady) {
-                await this.unload()
-            }
-        }, this.id)
     }
     get events () {
         return super.events
@@ -246,6 +241,22 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
     }
     get hasVideo () {
         return (this._videos.length > 0)
+    }
+    set isActive (value: boolean) {
+        // Check if disabling has side effects.
+        if (this.#SETTINGS?.unloadOnClose && this._service?.isReady) {
+            // If the resource is to be unloaded on close, we need to dispatch the events manually.
+            this.dispatchEvent(value ? AssetEvents.ACTIVATE : AssetEvents.DEACTIVATE, 'before')
+            this.dispatchPropertyChangeEvent('isActive', value, this.isActive, 'before')
+            this.unload().then(() => {
+                this._isActive = value
+                this.dispatchPropertyChangeEvent('isActive', value, this.isActive, 'after')
+                this.dispatchEvent(value ? AssetEvents.ACTIVATE : AssetEvents.DEACTIVATE, 'after')
+            })
+        } else {
+            // Default to base class implementation.
+            super.isActive = value
+        }
     }
     get videos () {
         return this._videos
