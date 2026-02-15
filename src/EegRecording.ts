@@ -78,7 +78,8 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
         ]],
     ])
     static readonly EXTRA_SETUPS = [] as ConfigBiosignalSetup[]
-    #SETTINGS = (window.__EPICURRENTS__?.RUNTIME?.SETTINGS.modules.eeg as EegModuleSettings) || null
+    /** A shorthand for accessing EEG module settings from the global runtime. */
+    protected _SETTINGS = (window.__EPICURRENTS__?.RUNTIME?.SETTINGS.modules.eeg as EegModuleSettings) || null
     /** The display view start can be optionally updated here after signals are processed and actually displayed. */
     protected _displayViewStart: number = 0
     protected _formatHeader: object | null = null
@@ -99,11 +100,11 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
         config = {} as BiosignalConfig
     ) {
         super(name, config?.modality || 'eeg')
-        if (!this.#SETTINGS) {
+        if (!this._SETTINGS) {
             Log.error(`EEG settings not found in the global Epicurrents runtime.`, SCOPE)
         }
         this._headers = header
-        if (memoryManager && this.#SETTINGS?.useMemoryManager) {
+        if (memoryManager && this._SETTINGS?.useMemoryManager) {
             this.setMemoryManager(memoryManager)
         }
         if (config.formatHeader) {
@@ -203,13 +204,13 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
         return super.events
     }
     set events (events: BiosignalAnnotationEvent[]) {
-        if (!this.#SETTINGS) {
+        if (!this._SETTINGS) {
             return
         }
         annotation_loop:
         for (let i=0; i<events.length; i++) {
             const evt = events[i]
-            for (const ignorePat of this.#SETTINGS.events.ignorePatterns) {
+            for (const ignorePat of this._SETTINGS.events.ignorePatterns) {
                 const patRegExp = new RegExp(ignorePat)
                 if (evt.label.match(patRegExp)) {
                     events.splice(i, 1)
@@ -217,7 +218,7 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
                     continue annotation_loop
                 }
             }
-            for (const [convertPat, replaceProps] of this.#SETTINGS.events.convertPatterns) {
+            for (const [convertPat, replaceProps] of this._SETTINGS.events.convertPatterns) {
                 const patRegExp = new RegExp(convertPat)
                 if (evt.label.match(patRegExp)) {
                     evt.annotator = replaceProps.annotator || evt.annotator
@@ -242,9 +243,12 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
     get hasVideo () {
         return (this._videos.length > 0)
     }
+    get isActive () {
+        return this._isActive
+    }
     set isActive (value: boolean) {
         // Check if disabling has side effects.
-        if (this.#SETTINGS?.unloadOnClose && this._service?.isReady) {
+        if (this._SETTINGS?.unloadOnClose && this._service?.isReady) {
             // If the resource is to be unloaded on close, we need to dispatch the events manually.
             this.dispatchEvent(value ? AssetEvents.ACTIVATE : AssetEvents.DEACTIVATE, 'before')
             this.dispatchPropertyChangeEvent('isActive', value, this.isActive, 'before')
@@ -270,13 +274,13 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
     ///////////////////////////////////////////////////
 
     async addDefaultSetupsAndMontages () {
-        if (!this.#SETTINGS) {
+        if (!this._SETTINGS) {
             return
         }
         // Calculate raw channel offset properties.
-        calculateSignalOffsets(this._channels, Object.assign({ isRaw: true, layout: [] }, this.#SETTINGS))
+        calculateSignalOffsets(this._channels, Object.assign({ isRaw: true, layout: [] }, this._SETTINGS))
         // Add default setups and montages.
-        for (const name of this.#SETTINGS.defaultSetups || []) {
+        for (const name of this._SETTINGS.defaultSetups || []) {
             const template = DEFAULTS[name]?.setup
             if (!template) {
                 Log.error(`Default setup '${name}' not found.`, SCOPE)
@@ -284,7 +288,7 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
             }
             const setup = this.addSetup(template, this._channels)
             Log.debug(`Added default setup '${name}'.`, SCOPE)
-            const montages = this.#SETTINGS.defaultMontages?.[
+            const montages = this._SETTINGS.defaultMontages?.[
                 setup.name as keyof EegModuleSettings['defaultMontages']
             ]
             for (const montage of montages || []) {
