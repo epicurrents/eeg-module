@@ -11,7 +11,16 @@
     "noUnusedParameters": false,              /* Allow unused parameters in tests */
     "noImplicitReturns": false,               /* More lenient for test code */
     "sourceMap": true,                        /* Enable source maps for debugging */
-    "types": ["jest", "node"]                 /* Include Jest and Node type definitions */
+    "types": ["jest", "node"],                 /* Include Jest and Node type definitions */
+    "paths": {
+      "@epicurrents/core": ["tests/mocks/epicurrents-core/index.ts"],
+      "@epicurrents/core/*": ["tests/mocks/epicurrents-core/*"],
+      "scoped-event-log": ["tests/mocks/scoped-event-log.ts"],
+      "#*": ["src/*"],
+      "#types": ["tests/mocks/epicurrents-core/dist/types.ts"]
+    }
+    ,
+    "noImplicitAny": false
   },
   "include": [
     "./tests/**/*",

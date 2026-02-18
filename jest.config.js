@@ -13,6 +13,8 @@ module.exports = {
         "^#runtime$": "<rootDir>/src/runtime/index.ts",
         "^#root/(.*)$": "<rootDir>/$1",
         "^#(.*)$": "<rootDir>/src/$1",
+        "^@epicurrents/core(.*)$": "<rootDir>/tests/mocks/epicurrents-core$1",
+        "^scoped-event-log$": "<rootDir>/tests/mocks/scoped-event-log.ts",
     },
     modulePaths: [
         "<rootDir>/src/",
@@ -21,6 +23,13 @@ module.exports = {
     roots: [
         "<rootDir>/tests/",
     ],
+    globals: {
+        'ts-jest': {
+            tsconfig: '<rootDir>/tsconfig.test.json',
+            diagnostics: false,
+            useESM: true
+        }
+    },
     transform: {
         '^.+\\.ts$': ['ts-jest', { tsconfig: '<rootDir>/tsconfig.test.json', useESM: true }],
         '^.+\\.js$': 'babel-jest',
@@ -29,7 +38,7 @@ module.exports = {
         "node_modules/(?!(@epicurrents)/)",
     ],
     //testRegex: "(test/.*|(\\.|/)(test|spec))\\.(tsx?)$",
-    testRegex: "tests.ts$",
+    testRegex: "\\.test\\.ts$",
     testEnvironment: "jsdom",
     testEnvironmentOptions: {
         browsers: [
