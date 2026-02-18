@@ -368,7 +368,7 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
     addSetup (config: ConfigBiosignalSetup, channels?: BiosignalChannel[]) {
         const existing = this._setups.find(s => s.name === config.name)
         if (existing) {
-            Log.debug(`Setup '${name}' already exists.`, SCOPE)
+            Log.debug(`Setup '${config.name}' already exists.`, SCOPE)
             return existing
         }
         const setup = new EegSetup(channels || this._channels, config)
