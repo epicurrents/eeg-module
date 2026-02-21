@@ -6,6 +6,7 @@
  */
 
 import { logInvalidMutation } from '@epicurrents/core/dist/runtime'
+import { safeObjectFrom } from '@epicurrents/core/dist/util'
 import type {
     DataResource,
     RuntimeResourceModule,
@@ -17,8 +18,7 @@ import type { EegResource } from '../types'
 
 const SCOPE = 'eeg-runtime-module'
 
-const EEG: SafeObject & RuntimeResourceModule = {
-    __proto__: null,
+const EEG: SafeObject & RuntimeResourceModule = safeObjectFrom({
     moduleName: {
         code: 'eeg',
         full: 'Electroencephalography',
@@ -105,5 +105,5 @@ const EEG: SafeObject & RuntimeResourceModule = {
             }
         }
     },
-}
+})
 export default EEG
