@@ -18,7 +18,7 @@ import type { EegResource } from '../types'
 
 const SCOPE = 'eeg-runtime-module'
 
-const EEG: SafeObject & RuntimeResourceModule = safeObjectFrom({
+const EEG = safeObjectFrom({
     moduleName: {
         code: 'eeg',
         full: 'Electroencephalography',
@@ -105,5 +105,5 @@ const EEG: SafeObject & RuntimeResourceModule = safeObjectFrom({
             }
         }
     },
-})
+} as SafeObject & RuntimeResourceModule)
 export default EEG
