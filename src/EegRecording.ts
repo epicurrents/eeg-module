@@ -11,12 +11,7 @@ import {
     GenericBiosignalResource,
 } from '@epicurrents/core'
 import { AssetEvents, BiosignalResourceEvents } from '@epicurrents/core/dist/events'
-import {
-    calculateSignalOffsets,
-    INDEX_NOT_ASSIGNED,
-    secondsToTimeString,
-    timePartsToShortString,
-} from '@epicurrents/core/dist/util'
+import { calculateSignalOffsets, INDEX_NOT_ASSIGNED } from '@epicurrents/core/dist/util'
 import type {
     AnnotationEventTemplate,
     AnnotationLabelTemplate,
@@ -401,24 +396,8 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
         if (props.size) {
             return props
         } else if (this.state === 'ready') {
-            props.set(
-                this._channels.length.toString(),
-                {
-                    icon: 'wave',
-                    n: this._channels.length,
-                    title: '{n} signals'
-                }
-            )
-            const timeParts = secondsToTimeString(this._totalDuration, true) as number[]
-            const timeShort = timePartsToShortString(timeParts)
-            props.set(
-                timeShort,
-                {
-                    icon: 'time',
-                    t: secondsToTimeString(this._totalDuration) as string,
-                    title: 'Duration: {t}',
-                }
-            )
+            props.set('duration', this._totalDuration)
+            props.set('signals', this._channels.length)
         }
         return props
     }
