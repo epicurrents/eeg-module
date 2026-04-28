@@ -41,4 +41,11 @@ export type EegModuleSettings = BaseModuleSettings & CommonBiosignalSettings & {
      * cause cycles to run at greater intervals when loading new signal data.
      */
     minNewSignalCacheCycleLength: number
+    /**
+     * When true, skip loading the default setups and montages (e.g. the 10-20 system)
+     * on recording activation. Use this when the project provides its own complete
+     * set of setups via `extraSetups` / `extraMontages` and the defaults would add
+     * unwanted clutter to the montage list.
+     */
+    skipDefaultSetups?: boolean
 }

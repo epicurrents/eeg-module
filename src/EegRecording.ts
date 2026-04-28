@@ -36,27 +36,11 @@ import Log from 'scoped-event-log'
 
 const SCOPE = "EegRecording"
 
-// Build default setups.
-const DEFAULTS = {} as {
-    [setup: string]: {
-        setup: ConfigBiosignalSetup
-        montages: { [montage: string]: BiosignalMontageTemplate }
-    }
-}
 import DEFAULT_1020 from '#config/defaults/10-20/setup.json'
 import DEFAULT_1020_AVG from '#config/defaults/10-20/montages/avg.json'
 import DEFAULT_1020_LON from '#config/defaults/10-20/montages/lon.json'
 import DEFAULT_1020_REC from '#config/defaults/10-20/montages/rec.json'
 import DEFAULT_1020_TRV from '#config/defaults/10-20/montages/trv.json'
-DEFAULTS['default:10-20'] = {
-    setup: DEFAULT_1020 as ConfigBiosignalSetup,
-    montages: {
-        avg: DEFAULT_1020_AVG as BiosignalMontageTemplate,
-        lon: DEFAULT_1020_LON as BiosignalMontageTemplate,
-        rec: DEFAULT_1020_REC as BiosignalMontageTemplate,
-        trv: DEFAULT_1020_TRV as BiosignalMontageTemplate,
-    },
-}
 
 // Additional montages.
 import EXTRA_1020_CZREF from '#config/extra/montages/10-20-cz-ref.json'
@@ -66,6 +50,17 @@ import EXTRA_1020_LAPLACIAN from '#config/extra/montages/10-20-laplacian.json'
  * EEG recording resource.
  */
 export default class EegRecording extends GenericBiosignalResource implements EegResource {
+    static readonly DEFAULT_MONTAGES = new Map<string, { setup: ConfigBiosignalSetup, montages: { [montage: string]: BiosignalMontageTemplate } }>([
+        ['default:10-20', {
+            setup: DEFAULT_1020 as ConfigBiosignalSetup,
+            montages: {
+                avg: DEFAULT_1020_AVG as BiosignalMontageTemplate,
+                lon: DEFAULT_1020_LON as BiosignalMontageTemplate,
+                rec: DEFAULT_1020_REC as BiosignalMontageTemplate,
+                trv: DEFAULT_1020_TRV as BiosignalMontageTemplate,
+            }
+        }]
+    ])
     static readonly EXTRA_MONTAGES = new Map<string, BiosignalMontageTemplate[]>([
         ['default:10-20', [
             EXTRA_1020_CZREF as BiosignalMontageTemplate,
@@ -176,6 +171,7 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
                 for (const [setup, extraMontages] of EegRecording.EXTRA_MONTAGES) {
                     for (const montage of extraMontages) {
                         if (
+                            this._setups.find(s => s.name === setup) &&
                             await this.addMontage(
                                 `${setup}:${montage.name}`,
                                 montage.label,
@@ -274,9 +270,13 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
         }
         // Calculate raw channel offset properties.
         calculateSignalOffsets(this._channels, Object.assign({ isRaw: true, layout: [] }, this._SETTINGS))
+        if (this._SETTINGS.skipDefaultSetups || !this._SETTINGS.defaultSetups?.length) {
+            // Skip default setups if none are defined or if skipping is explicitly set in settings.
+            return
+        }
         // Add default setups and montages.
         for (const name of this._SETTINGS.defaultSetups || []) {
-            const template = DEFAULTS[name]?.setup
+            const template = EegRecording.DEFAULT_MONTAGES.get(name)?.setup
             if (!template) {
                 Log.error(`Default setup '${name}' not found.`, SCOPE)
                 continue
@@ -287,7 +287,7 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
                 setup.name as keyof EegModuleSettings['defaultMontages']
             ]
             for (const montage of montages || []) {
-                const template = DEFAULTS[name]?.montages[montage[0]]
+                const template = EegRecording.DEFAULT_MONTAGES.get(name)?.montages[montage[0]]
                 const newMontage = await this.addMontage(`${setup.name}:${montage[0]}`, montage[1], setup, template)
                 if (newMontage) {
                     Log.debug(`Added montage '${montage[0]}' for setup '${setup.name}'.`, SCOPE)
