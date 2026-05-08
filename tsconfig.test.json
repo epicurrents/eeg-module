@@ -3,7 +3,7 @@
   "compilerOptions": {
     /* Override settings for Jest tests */
     "target": "es2020",
-    "module": "commonjs",                     /* Jest works better with CommonJS */
+    "module": "esnext",                       /* ESM for Vitest */
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
     "declaration": false,                     /* No need for .d.ts files in tests */
@@ -11,7 +11,7 @@
     "noUnusedParameters": false,              /* Allow unused parameters in tests */
     "noImplicitReturns": false,               /* More lenient for test code */
     "sourceMap": true,                        /* Enable source maps for debugging */
-    "types": ["jest", "node"],                 /* Include Jest and Node type definitions */
+    "types": ["vitest/globals", "node"],       /* Vitest globals and Node type definitions */
     "paths": {
       "@epicurrents/core": ["tests/mocks/epicurrents-core/index.ts"],
       "@epicurrents/core/*": ["tests/mocks/epicurrents-core/*"],
