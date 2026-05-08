@@ -23,6 +23,7 @@ import type {
     ConfigBiosignalSetup,
     ConfigMapChannels,
     MemoryManager,
+    PropertyChangeContext,
     StudyContext,
     SourceChannel,
     UrlAccessOptions,
@@ -300,20 +301,20 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
         }
     }
 
-    addEventsFromTemplates (...templates: AnnotationEventTemplate[]) {
+    addEventsFromTemplates (_context: PropertyChangeContext | null, ...templates: AnnotationEventTemplate[]) {
         const events = [] as EegEvent[]
         for (const tpl of templates) {
             events.push(EegEvent.fromTemplate(tpl))
         }
-        this.addEvents(...events)
+        this.addEvents({ source: 'system' }, ...events)
     }
 
-    addLabelsFromTemplates (...templates: AnnotationLabelTemplate[]) {
+    addLabelsFromTemplates (_context: PropertyChangeContext | null, ...templates: AnnotationLabelTemplate[]) {
         const labels = [] as EegLabel[]
         for (const tpl of templates) {
             labels.push(EegLabel.fromTemplate(tpl))
         }
-        this.addLabels(...labels)
+        this.addLabels({ source: 'system' }, ...labels)
     }
 
     async addMontage (
