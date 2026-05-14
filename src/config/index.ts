@@ -64,5 +64,48 @@ const EegSettings: EegModuleSettings = {
     showMissingChannels: false,
     unloadOnClose: false,
     useMemoryManager: false,
+    trends: {
+        amplitude: {
+            bandHighpass: 2,
+            bandLowpass: 15,
+            epochLength: 15,
+            envelopeMethod: 'minmax',
+            scaleCompression: 'semilog',
+        },
+    },
+    aeeg: {
+        // Off by default — trend compute runs in the same montage worker as the initial signal
+        // requests, and the per-epoch CPU work otherwise delays the first page render until
+        // caching is well underway. Setup is triggered on-demand the first time the user toggles
+        // the trend strip visible (see `EegViewer.setTrendVisible`). Set this to `true` to start
+        // computing the trend automatically as soon as caching completes — useful for kiosk /
+        // dashboard deployments where the trend is the primary display.
+        autoCompute: false,
+        derivations: [
+            {
+                id: 'left',
+                label: 'Left',
+                // Cool blue for the left hemisphere; conventional sided color coding.
+                color: [0.20, 0.45, 0.85, 0.85],
+                candidates: [
+                    { source: 'C3', reference: '' },
+                    { source: 'P3', reference: '' },
+                ],
+            },
+            {
+                id: 'right',
+                label: 'Right',
+                // Warm orange for the right hemisphere.
+                color: [0.90, 0.45, 0.20, 0.85],
+                candidates: [
+                    { source: 'C4', reference: '' },
+                    { source: 'P4', reference: '' },
+                ],
+            },
+        ],
+        displayMode: 'separate',
+        heightFraction: 0.6,
+        visible: true,
+    },
 }
 export default EegSettings

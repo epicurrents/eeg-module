@@ -20,6 +20,7 @@ import type {
     BiosignalConfig,
     BiosignalMontageTemplate,
     BiosignalSetup,
+    BiosignalTrendDerivation,
     ConfigBiosignalSetup,
     ConfigMapChannels,
     MemoryManager,
@@ -31,7 +32,8 @@ import type {
 import EegEvent from './components/EegEvent'
 import EegLabel from './components/EegLabel'
 import EegService from './service/EegService'
-import { EegMontage, EegSetup, EegSourceChannel, EegVideo } from './components'
+import { EegAmplitudeIntegratedTrend, EegMontage, EegSetup, EegSourceChannel, EegVideo } from './components'
+import { resolveAeegDerivation } from './util/derivation'
 import type { EegModuleSettings, EegResource } from './types'
 import Log from 'scoped-event-log'
 
@@ -71,11 +73,24 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
     static readonly EXTRA_SETUPS = [] as ConfigBiosignalSetup[]
     /** A shorthand for accessing EEG module settings from the global runtime. */
     protected _SETTINGS = (window.__EPICURRENTS__?.RUNTIME?.SETTINGS.modules.eeg as EegModuleSettings) || null
+    /** Trend name prefix for auto-instantiated aEEG trends. One trend per side-entry from
+     *  `settings.aeeg.derivations` is created, named `<prefix>-<entry.id>` (e.g. `aeeg-left`). */
+    protected static readonly AEEG_TREND_PREFIX = 'aeeg'
     /** The display view start can be optionally updated here after signals are processed and actually displayed. */
     protected _displayViewStart: number = 0
     protected _formatHeader: object | null = null
     /** Header information for this record. */
     protected _headers: GenericBiosignalHeader
+    /** Tracks whether signal caching has completed at least once for this recording. */
+    protected _signalCachingComplete = false
+    /** Sticky flag set the first time a trend setup is requested via
+     *  {@link ensureAeegTrendSetup}. Once true, every subsequent `_setupAeegTrend` invocation
+     *  proceeds, regardless of `settings.aeeg.autoCompute` — so changes that propagate through
+     *  the active-montage handler (filter change, montage swap, settings tweak, recompute
+     *  button) re-instantiate the trends on the new montage. The on-demand semantics still
+     *  hold: nothing happens until the user first opens the strip, but after that, the trends
+     *  stay live for the recording's lifetime. */
+    protected _aeegTrendsEnabled = false
     protected _setups: BiosignalSetup[] = []
     protected _videos: EegVideo[] = []
 
@@ -187,6 +202,16 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
                 // Initial setup complete.
                 Log.debug(`EEG recording initial setup complete.`, SCOPE)
                 this.dispatchEvent(EegRecording.EVENTS.INITIAL_SETUP, 'after')
+                // Auto-instantiate the aEEG trend on every new active montage. The trend is only
+                // started after signal caching completes (computeTrend reads from the same cache
+                // and would emit per-epoch errors otherwise). Compute itself depends on either
+                // `settings.aeeg.autoCompute` being true OR an explicit setup request via
+                // {@link ensureAeegTrendSetup} (user toggling the trend strip on from the menu).
+                this.onPropertyChange('activeMontage', () => this._setupAeegTrend(), this.id)
+                this.addEventListener(BiosignalResourceEvents.SIGNAL_CACHING_COMPLETE, () => {
+                    this._signalCachingComplete = true
+                    this._setupAeegTrend()
+                }, this.id)
                 await this.cacheSignals()
                 this.dispatchEvent(BiosignalResourceEvents.SIGNAL_CACHING_COMPLETE)
             }
@@ -264,6 +289,101 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
     ///////////////////////////////////////////////////
     //                   METHODS                     //
     ///////////////////////////////////////////////////
+
+    /**
+     * Public entry point for callers that want to ensure the aEEG trend is set up — typically the
+     * UI when the user toggles the trend strip visible. If signal caching has already finished,
+     * setup runs immediately. Otherwise the request is queued and the
+     * {@link BiosignalResourceEvents.SIGNAL_CACHING_COMPLETE} handler will fulfil it once data is
+     * available. Calling this before `activeMontage` is set is also safe; the activeMontage
+     * property-change handler will retry.
+     */
+    ensureAeegTrendSetup () {
+        // Sticky enable: once the UI has asked for trends, every subsequent setup invocation
+        // (active-montage change, recompute, etc.) proceeds. When signal caching is still in
+        // progress, setting the flag also makes the `SIGNAL_CACHING_COMPLETE` handler run setup
+        // once data is available.
+        this._aeegTrendsEnabled = true
+        if (this._signalCachingComplete) {
+            this._setupAeegTrend()
+        }
+    }
+
+    /**
+     * For each entry in `settings.aeeg.derivations`, try its candidate list against the active
+     * montage and create a separate trend with the first one that resolves. Standard aEEG layout
+     * is two trends (one per hemisphere) — entries are typically `[left, right]`. Stale trends
+     * from earlier active montages are torn down first. A no-op when no active montage exists,
+     * signal caching has not completed, or neither `autoCompute` is enabled nor a setup request
+     * is pending via {@link ensureAeegTrendSetup}.
+     */
+    protected _setupAeegTrend () {
+        const settings = this._SETTINGS
+        if (!settings?.aeeg || !this._signalCachingComplete) {
+            return
+        }
+        // Compute when explicitly enabled in settings OR when the UI has previously requested
+        // setup (`_aeegTrendsEnabled`). The enabled flag is sticky: once the user opens the
+        // strip, subsequent active-montage changes still rebuild the trends on the new montage.
+        if (!settings.aeeg.autoCompute && !this._aeegTrendsEnabled) {
+            return
+        }
+        const montage = this._activeMontage
+        if (!montage) {
+            return
+        }
+        const epochLength = settings.trends?.amplitude?.epochLength ?? 15
+        // Tear down any stale `aeeg-*` trends from the previous active montage / setup pass.
+        for (const trendName of Object.keys(montage.trends)) {
+            if (trendName.startsWith(`${EegRecording.AEEG_TREND_PREFIX}-`)) {
+                montage.removeTrend(trendName)
+            }
+        }
+        for (const entry of settings.aeeg.derivations) {
+            let resolvedDerivation: BiosignalTrendDerivation | null = null
+            let resolvedSubLabel = ''
+            for (const candidate of entry.candidates) {
+                const resolved = resolveAeegDerivation(montage, candidate.source, candidate.reference)
+                if (resolved) {
+                    resolvedDerivation = {
+                        sourceChannels: resolved.sourceChannels,
+                        referenceChannels: resolved.referenceChannels,
+                        type: 'amplitude',
+                        sourceFunction: 'average',
+                        referenceFunction: 'average',
+                    }
+                    resolvedSubLabel = candidate.reference
+                        ? `${candidate.source}-${candidate.reference}`
+                        : candidate.source
+                    break
+                }
+            }
+            if (!resolvedDerivation) {
+                Log.debug(
+                    `No aEEG candidate resolved for '${entry.label}' against montage '${montage.name}'.`,
+                    SCOPE
+                )
+                continue
+            }
+            const trendName = `${EegRecording.AEEG_TREND_PREFIX}-${entry.id}`
+            const trend = new EegAmplitudeIntegratedTrend(
+                trendName,
+                resolvedSubLabel,
+                resolvedDerivation,
+                montage.service,
+                {
+                    color: entry.color,
+                    epochLength,
+                }
+            )
+            if (!montage.addTrend(trend)) {
+                continue
+            }
+            trend.computeTrend().catch((error: unknown) => {
+                Log.warn(`Compute of aEEG trend '${trendName}' failed: ${error}`, SCOPE)
+            })
+        }
+    }
 
     async addDefaultSetupsAndMontages () {
         if (!this._SETTINGS) {

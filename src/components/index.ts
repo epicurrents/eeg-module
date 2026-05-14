@@ -1,3 +1,4 @@
+import EegAmplitudeIntegratedTrend from './EegAmplitudeIntegratedTrend'
 import EegEvent from './EegEvent'
 import EegLabel from './EegLabel'
 import EegMontage from './EegMontage'
@@ -7,6 +8,7 @@ import EegSourceChannel from './EegSourceChannel'
 import EegVideo from './EegVideo'
 
 export {
+    EegAmplitudeIntegratedTrend,
     EegEvent,
     EegLabel,
     EegMontage,

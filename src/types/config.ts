@@ -8,6 +8,7 @@
 import {
     type BaseModuleSettings,
     type CommonBiosignalSettings,
+    type SettingsColor,
 } from '@epicurrents/core/dist/types'
 
 export type EegModuleSettings = BaseModuleSettings & CommonBiosignalSettings & {
@@ -48,4 +49,52 @@ export type EegModuleSettings = BaseModuleSettings & CommonBiosignalSettings & {
      * unwanted clutter to the montage list.
      */
     skipDefaultSetups?: boolean
+    /** aEEG (amplitude-integrated EEG) trend settings. Resolves against the active montage. */
+    aeeg?: {
+        /**
+         * Whether to automatically compute the aEEG trend(s) as soon as the recording's signal
+         * caching completes. When `false` (default), the trend is set up lazily the first time
+         * the user toggles the trend strip visible — this keeps the montage worker free for
+         * initial signal-page rendering on every recording open, at the cost of a one-time
+         * compute delay when the strip is first opened.
+         *
+         * Each entry in {@link derivations} resolves its candidates against the active montage
+         * in order, creating one trend with the first candidate that resolves.
+         */
+        autoCompute: boolean
+        /**
+         * One entry per trend slot. The standard NICU aEEG layout is two homologous trends —
+         * one for each hemisphere — so the user can compare left vs. right side activity.
+         * Each entry carries its own label, color, and fallback candidate list.
+         */
+        derivations: {
+            /** Stable identifier used as the trend name suffix (e.g. `'left'` → `'aeeg-left'`). */
+            id: string
+            /** Display label shown in the trend strip's left-side legend. */
+            label: string
+            /** Color of this trend's filled band. */
+            color: SettingsColor
+            /**
+             * Candidate derivations in priority order. The resolver tries each in turn and stops
+             * at the first one whose electrodes can be found in the active montage. Each entry
+             * is `{ source, reference }` — see {@link resolveAeegDerivation} for the matching
+             * rules (direct bipolar channel name, then individual electrode names).
+             */
+            candidates: { source: string, reference: string }[]
+        }[]
+        /**
+         * Layout for multiple aEEG bands in the trend strip.
+         *  - `'separate'`: each band gets its own vertical slot (left on top, right below).
+         *  - `'superimposed'`: all bands are drawn on the same vertical slot with reduced alpha,
+         *    making left-vs-right comparison easier at the cost of some band overlap.
+         *
+         * EegViewer forces `'superimposed'` automatically when the trend strip is compressed
+         * below the dual-slot height threshold (see EegViewer's `effectiveTrendDisplayMode`).
+         */
+        displayMode: 'separate' | 'superimposed'
+        /** Fraction of the navigator strip's height to use for the aEEG band (0.0–1.0). */
+        heightFraction: number
+        /** Whether the band is currently shown. Setting false hides the band without disposing the trend. */
+        visible: boolean
+    }
 }
