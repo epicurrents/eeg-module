@@ -64,27 +64,66 @@ export default class EegStudyLoader extends BiosignalStudyLoader {
             this._memoryManager || undefined,
             { formatHeader: meta.formatHeader }
         )
-        // Check that we can display this resource using Float32Arrays.
+        // Check that we can display this resource within the available memory budget. Recordings
+        // whose full decoded size exceeds `maxLoadCacheSize` are loaded via the rolling 3-block
+        // cache (see `_buildDataBlocks` in `GenericSignalReader`); the resource is still openable
+        // as long as three blocks plus per-channel mutex headers fit in the budget. Only when
+        // even that minimum doesn't fit does this become a hard failure.
         let totalSamples = 0
-        for (const chan of meta.channels) {
-            totalSamples += chan.sampleCount
-        }
         if (!window.__EPICURRENTS__?.RUNTIME) {
             // For TypeScript really.
             Log.error(`Reference to main application runtime was not found!`, SCOPE)
-        } else if (4*totalSamples > window.__EPICURRENTS__.RUNTIME.SETTINGS.app.maxLoadCacheSize) {
-            Log.error(
-                [
-                    `Decoded file size ${(4*totalSamples/MB_BYTES).toFixed(2)} Mib exceeds maximum cache size ` +
-                    `${(window.__EPICURRENTS__.RUNTIME.SETTINGS.app.maxLoadCacheSize/MB_BYTES).toFixed(2)} MiB.`,
-                    `The limit for maximum cache size can be changed with the app setting maxLoadCacheSize.`
-                ],
-                SCOPE
-            )
-            recording.errorReason = `File size is too large.`
-            recording.state = 'error'
         } else {
-            recording.state = 'loaded'
+            const appSettings = window.__EPICURRENTS__.RUNTIME.SETTINGS.app
+            const blockDurationCap = appSettings.dataBlockDuration ?? 3600
+            const maxCacheBytes = appSettings.maxLoadCacheSize
+            let bytesPerSecond = 0
+            for (const chan of meta.channels) {
+                totalSamples += chan.sampleCount
+                bytesPerSecond += chan.samplingRate * 4
+            }
+            // Mirror the adaptive block-duration computation in `EegRecording` and
+            // `_buildDataBlocks`: 3 blocks of `blockDuration` must fit in ~95 % of the cache.
+            const idealBlockDuration = bytesPerSecond > 0
+                ? Math.floor(maxCacheBytes * 0.95 / (3 * bytesPerSecond))
+                : blockDurationCap
+            const ROLLING_BLOCK_FLOOR = 60
+            const blockDuration = Math.max(
+                ROLLING_BLOCK_FLOOR,
+                Math.min(blockDurationCap, idealBlockDuration)
+            )
+            let rollingSamples = 0
+            for (const chan of meta.channels) {
+                rollingSamples += Math.min(
+                    chan.sampleCount,
+                    Math.ceil(3 * blockDuration * chan.samplingRate)
+                )
+            }
+            if (4 * rollingSamples > maxCacheBytes) {
+                // Even the floor-sized rolling cache won't fit. Cannot open the recording at all.
+                Log.error(
+                    [
+                        `Recording's rolling cache (${(4 * rollingSamples / MB_BYTES).toFixed(2)} MiB at ` +
+                        `${blockDuration} s blocks) exceeds maximum cache size ` +
+                        `${(maxCacheBytes / MB_BYTES).toFixed(2)} MiB.`,
+                        `Raise the app setting maxLoadCacheSize to open this recording.`
+                    ],
+                    SCOPE
+                )
+                recording.errorReason = `Rolling cache exceeds maximum memory budget.`
+                recording.state = 'error'
+            } else {
+                if (4 * totalSamples > maxCacheBytes) {
+                    Log.info(
+                        `Recording size ${(4 * totalSamples / MB_BYTES).toFixed(2)} MiB exceeds cache ` +
+                        `${(maxCacheBytes / MB_BYTES).toFixed(2)} MiB; opening via rolling cache ` +
+                        `(${blockDuration} s blocks, ` +
+                        `${(4 * rollingSamples / MB_BYTES).toFixed(2)} MiB working set).`,
+                        SCOPE
+                    )
+                }
+                recording.state = 'loaded'
+            }
         }
         recording.source = this._study
         this._resources.push(recording)

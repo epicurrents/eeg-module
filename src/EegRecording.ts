@@ -141,12 +141,48 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
             if (!this._service?.isReady && this._state === 'ready') {
                 this.dispatchEvent(EegRecording.EVENTS.INITIAL_SETUP, 'before')
                 if (this._memoryManager) {
-                    // Calculate needed memory to load the entire recording.
+                    // Calculate needed memory. If the full recording fits in `maxLoadCacheSize`, allocate
+                    // its full sample count per channel and use the static-cache path. Otherwise allocate
+                    // only `3 × blockDuration` seconds per channel where `blockDuration` is computed
+                    // adaptively to maximise block size within the cache budget. Mirrors the
+                    // `_buildDataBlocks` computation on the worker side; both must agree on the value.
+                    const appSettings = window.__EPICURRENTS__?.RUNTIME?.SETTINGS.app
+                    const maxCacheBytes = appSettings?.maxLoadCacheSize ?? 0
+                    const blockDurationCap = appSettings?.dataBlockDuration ?? 3600
                     let totalMem = 4 // For lock field.
                     const dataFieldsLen = BiosignalMutex.SIGNAL_DATA_POS
+                    let fullSizeFloats = 0
+                    let bytesPerSecond = 0
                     for (const chan of channels) {
-                        totalMem += chan.sampleCount + dataFieldsLen
+                        fullSizeFloats += chan.sampleCount
+                        // Annotation channels (samplingRate 0) carry no signal bytes.
+                        bytesPerSecond += chan.samplingRate * 4
                     }
+                    const useRolling = (fullSizeFloats * 4) > maxCacheBytes
+                    // Adaptive block duration: 3 × blockDuration seconds of channel data must fit
+                    // inside ~95 % of the cache budget. Clamp to [60 s, dataBlockDuration cap]
+                    // so a low cache budget still gets a workable (if small) block, and a huge
+                    // budget stops growing past the configured ceiling.
+                    const idealBlockDuration = bytesPerSecond > 0
+                        ? Math.floor(maxCacheBytes * 0.95 / (3 * bytesPerSecond))
+                        : blockDurationCap
+                    const ROLLING_BLOCK_FLOOR = 60
+                    const blockDuration = Math.max(
+                        ROLLING_BLOCK_FLOOR,
+                        Math.min(blockDurationCap, idealBlockDuration)
+                    )
+                    for (const chan of channels) {
+                        const channelSamples = useRolling
+                            ? Math.min(chan.sampleCount, Math.ceil(3 * blockDuration * chan.samplingRate))
+                            : chan.sampleCount
+                        totalMem += channelSamples + dataFieldsLen
+                    }
+                    Log.info(
+                        `EegRecording memory request: useRolling=${useRolling} ` +
+                        `maxCache=${maxCacheBytes}B cap=${blockDurationCap}s ideal=${idealBlockDuration}s ` +
+                        `blockDur=${blockDuration}s fullSize=${fullSizeFloats * 4}B totalMem=${totalMem * 4}B`,
+                        SCOPE
+                    )
                     const memorySuccess = await this._service?.requestMemory(totalMem)
                     if (!memorySuccess) {
                         Log.error(`Memory allocation failed.`, SCOPE)
@@ -165,6 +201,73 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
                         return
                     }
                     Log.debug(`Buffer setup complete.`, SCOPE)
+                    // For rolling-cache recordings, wire a viewStart listener that retriggers
+                    // `cacheSignals` whenever the active view crosses out of the current middle
+                    // block. The slide loads the new edge block while the user is still safely
+                    // in the current middle; with orderly browsing, a block of cached data is
+                    // always ready in the direction of motion. Non-rolling recordings load
+                    // everything up-front and don't need the listener.
+                    //
+                    // **Prefetch hysteresis.** The slide trigger uses a half-block lookahead, so
+                    // the window slides forward when the user is ~50 % into the current centre
+                    // block (rather than when they cross into the next block). The new edge
+                    // block then has roughly half a block's worth of user time to download
+                    // before the user actually reaches it. Without this, with small cache
+                    // budgets where the block duration hits the 60 s floor, page-by-page
+                    // scrolling outpaces the block load and the renderer briefly sees an empty
+                    // region past the cached range.
+                    //
+                    // **Serialisation.** Each slide takes the SAB write lock during
+                    // `setSignalRange`'s data shift, so firing multiple concurrent slides starves
+                    // the montage worker's read locks (manifests as `Maximum retries of locking
+                    // operation reached` errors). When a new boundary crossing arrives while a
+                    // slide is already running, we remember just the latest viewStart and run
+                    // that single slide once the current one completes — intermediate crossings
+                    // are intentionally dropped because the user has already moved past them.
+                    if (useRolling) {
+                        const lookahead = blockDuration*0.5
+                        // Initialise to the prefetch-adjusted block at viewStart 0 so the listener
+                        // doesn't fire spuriously the first time the viewer touches the property.
+                        let lastTriggeredBlock = Math.floor(lookahead/blockDuration)
+                        let slideInFlight: Promise<unknown> | null = null
+                        let pendingViewStart: number | null = null
+                        const runSlide = async (viewStart: number): Promise<void> => {
+                            try {
+                                await this._service?.cacheSignals(viewStart)
+                            } finally {
+                                slideInFlight = null
+                                if (pendingViewStart !== null) {
+                                    const next = pendingViewStart
+                                    pendingViewStart = null
+                                    slideInFlight = runSlide(next)
+                                }
+                            }
+                        }
+                        this.onPropertyChange('viewStart', () => {
+                            // Compute the "effective" block as if the view were `lookahead` seconds
+                            // ahead of its actual position. This pulls the slide trigger forward by
+                            // half a block so the new edge block starts downloading while the user
+                            // is still safely in the centre of the current one.
+                            const prefetchStart = this._viewStart + lookahead
+                            const prefetchBlock = Math.floor(prefetchStart/blockDuration)
+                            if (prefetchBlock === lastTriggeredBlock) {
+                                return
+                            }
+                            lastTriggeredBlock = prefetchBlock
+                            // Pass the lookahead-adjusted position to `cacheSignals` so the worker
+                            // centres the new window on the *next* block rather than the user's
+                            // current one. Passing the unadjusted viewStart would resolve to the
+                            // same block the window is already centred on, and `_slideToBlock`
+                            // would no-op — that was the original bug where prefetch fired but
+                            // never actually slid the window, so the user could still catch the
+                            // cache before the next block loaded.
+                            if (slideInFlight) {
+                                pendingViewStart = prefetchStart
+                            } else {
+                                slideInFlight = runSlide(prefetchStart)
+                            }
+                        }, this.id)
+                    }
                 } else {
                     const dataCache = await this.setupCache()
                     if (!dataCache) {

@@ -60,6 +60,20 @@ export default class EegService extends GenericBiosignalService implements Biosi
         const fileUrl = study.files.filter(
             f => f.modality === 'eeg' && f.role === 'data'
         ).map(file => file.url)[0]
+        // Snapshot the main thread's app settings so the worker starts with the same configured
+        // values rather than the bundled defaults. The worker's `_buildDataBlocks` decides
+        // `_useRolling` from `maxLoadCacheSize` and `dataBlockDuration`; if those don't match the
+        // main thread's, the mutex layout it computes won't fit the allocated SAB slice.
+        const appSettings = window.__EPICURRENTS__?.RUNTIME?.SETTINGS?.app
+        const settingsApp = appSettings ? {
+            dataBlockDuration: appSettings.dataBlockDuration,
+            dataChunkSize: appSettings.dataChunkSize,
+            logThreshold: appSettings.logThreshold,
+            maxDirectLoadSize: appSettings.maxDirectLoadSize,
+            maxLoadCacheSize: appSettings.maxLoadCacheSize,
+            signalLoadingYieldMs: appSettings.signalLoadingYieldMs,
+            useMemoryManager: appSettings.useMemoryManager,
+        } : null
         try {
             const commission = this._commissionWorker(
                 'setup-worker',
@@ -68,6 +82,7 @@ export default class EegService extends GenericBiosignalService implements Biosi
                     ['url', fileUrl],
                     ['authHeader', options?.authHeader || null],
                     ['formatHeader', formatHeader || null],
+                    ['settingsApp', settingsApp],
                 ])
             )
             return commission.promise as Promise<SetupStudyResponse>
