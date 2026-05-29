@@ -1,74 +1,75 @@
 {
-    "name": "@epicurrents/eeg-module",
-    "version": "0.1.1-8",
-    "description": "Epicurrents EEG module",
-    "main": "dist/index.js",
-    "types": "dist/index.d.ts",
-    "exports": {
-        ".": {
-            "types": "./dist/index.d.ts",
-            "import": "./dist/index.js",
-            "default": "./dist/index.js"
-        },
-        "./config": "./dist/config/index.js",
-        "./runtime": "./dist/runtime/index.js",
-        "./types": "./dist/types/index.d.ts",
-        "./package.json": "./package.json",
-        "./dist/config": "./dist/config/index.js",
-        "./dist/runtime": "./dist/runtime/index.js",
-        "./dist/types": "./dist/types/index.d.ts"
+  "name": "@epicurrents/eeg-module",
+  "version": "0.1.1-8",
+  "description": "Epicurrents EEG module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
     },
-    "imports": {
-        "#runtime*": "./dist/src/runtime/index.ts",
-        "#*": "./dist/*"
-    },
-    "files": [
-        "dist/*",
-        "umd/*.js",
-        "umd/*.LICENSE.txt",
-        "LICENSE",
-        "README.md"
-    ],
-    "scripts": {
-        "build": "npm run build:umd && npm run build:tsc",
-        "build:docs": "npx typedoc",
-        "build:tsc": "tsc && tsconfig-replace-paths --project tsconfig.json && npm run copy:json",
-        "build:umd": "webpack --progress --config webpack.config.js",
-        "copy:json": "node copy-json.js",
-        "dev": "webpack serve --progress --config webpack.dev.js",
-        "lint": "npm run lint:src",
-        "lint:src": "eslint src",
-        "prepack": "npm run build",
-        "release": "npm publish --access=public",
-        "test": "npm run test:unit",
-        "test:unit": "vitest run --coverage",
-        "update:core": "cd node_modules/@epicurrents/core && git pull && npm i && npm run build:tsc"
-    },
-    "repository": {
-        "type": "git",
-        "url": "https://github.com/epicurrents/eeg-module.git"
-    },
-    "author": "Sampsa Lohi",
-    "license": "Apache-2.0",
-    "dependencies": {
-        "@epicurrents/core": "^0.3.0-2",
-        "asymmetric-io-mutex": "^0.6.8",
-        "axios": "^1.6.2",
-        "scoped-event-log": "^3.0.0"
-    },
-    "devDependencies": {
-        "@microsoft/tsdoc": "^0.14.1",
-        "@typescript-eslint/eslint-plugin": "^6.14.0",
-        "@typescript-eslint/parser": "^6.14.0",
-        "circular-dependency-plugin": "^5.2.2",
-        "dotenv": "^16.3.1",
-        "dotenv-webpack": "^8.0.1",
-        "eslint": "^8.55.0",
-        "ts-loader": "^9.5.1",
-        "tsconfig-replace-paths": "^0.0.14",
-        "typedoc": "^0.27.4",
-        "typescript": "5.6",
-        "webpack-bundle-analyzer": "^4.10.1",
-        "webpack-cli": "^5.1.4"
-    }
+    "./config": "./dist/config/index.js",
+    "./runtime": "./dist/runtime/index.js",
+    "./types": "./dist/types/index.d.ts",
+    "./package.json": "./package.json",
+    "./dist/config": "./dist/config/index.js",
+    "./dist/runtime": "./dist/runtime/index.js",
+    "./dist/types": "./dist/types/index.d.ts"
+  },
+  "imports": {
+    "#runtime*": "./dist/src/runtime/index.ts",
+    "#*": "./dist/*"
+  },
+  "files": [
+    "dist/*",
+    "umd/*.js",
+    "umd/*.LICENSE.txt",
+    "LICENSE",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "npm run build:umd && npm run build:tsc",
+    "build:docs": "npx typedoc",
+    "build:tsc": "tsc && tsconfig-replace-paths --project tsconfig.json && npm run copy:json",
+    "build:umd": "webpack --progress --config webpack.config.js",
+    "copy:json": "node copy-json.js",
+    "dev": "webpack serve --progress --config webpack.dev.js",
+    "lint": "npm run lint:src",
+    "lint:src": "eslint src",
+    "prepack": "npm run build",
+    "release": "npm publish --access=public",
+    "test": "npm run test:unit",
+    "test:unit": "vitest run --coverage",
+    "update:core": "cd node_modules/@epicurrents/core && git pull && npm i && npm run build:tsc"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/epicurrents/eeg-module.git"
+  },
+  "author": "Sampsa Lohi",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "@epicurrents/core": "^0.3.0-2",
+    "asymmetric-io-mutex": "^0.6.8",
+    "axios": "^1.6.2",
+    "scoped-event-log": "^3.0.0"
+  },
+  "devDependencies": {
+    "@microsoft/tsdoc": "^0.14.1",
+    "@typescript-eslint/eslint-plugin": "^6.14.0",
+    "@typescript-eslint/parser": "^6.14.0",
+    "circular-dependency-plugin": "^5.2.2",
+    "dotenv": "^16.3.1",
+    "dotenv-webpack": "^8.0.1",
+    "eslint": "^8.55.0",
+    "ts-loader": "^9.5.1",
+    "tsconfig-replace-paths": "^0.0.14",
+    "typedoc": "^0.27.4",
+    "typescript": "^5.7.0",
+    "webpack-bundle-analyzer": "^4.10.1",
+    "webpack-cli": "^5.1.4",
+    "webpack": "^5.73.0"
+  }
 }
