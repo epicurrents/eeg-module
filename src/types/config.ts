@@ -49,6 +49,29 @@ export type EegModuleSettings = BaseModuleSettings & CommonBiosignalSettings & {
      * unwanted clutter to the montage list.
      */
     skipDefaultSetups?: boolean
+    /** Power spectrogram trend settings. */
+    spectrogram?: {
+        epochLength: number
+        maxFreqHz:   number
+        mode: 'power' | 'proportion'
+        /** Use Common Average Reference instead of the configured reference channel. */
+        averageReference: boolean
+    }
+    /**
+     * pdBSI (pairwise derived Brain Symmetry Index) setup. Carries the homologous L/R
+     * electrode pair list — EEG-specific because the pair names follow 10-20 electrode
+     * conventions. Math knobs live in {@link trends.pdbsi} (inherited from
+     * {@link CommonBiosignalSettings}); display-only knobs live in the interface
+     * module's `EegInterfaceSettings.trends.pdbsi`.
+     */
+    pdbsi?: {
+        /**
+         * Homologous electrode pairs over which the index is averaged each epoch.
+         * Pairs whose left or right electrode cannot be matched in the recording setup
+         * are silently skipped; the trend is registered only if at least one pair resolves.
+         */
+        pairs: { left: string, right: string }[]
+    }
     /** aEEG (amplitude-integrated EEG) trend settings. Resolves against the active montage. */
     aeeg?: {
         /**

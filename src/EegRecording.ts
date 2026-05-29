@@ -11,6 +11,7 @@ import {
     GenericBiosignalResource,
 } from '@epicurrents/core'
 import { AssetEvents, BiosignalResourceEvents } from '@epicurrents/core/dist/events'
+import { TrendService } from '@epicurrents/core/dist/assets'
 import { calculateSignalOffsets, INDEX_NOT_ASSIGNED } from '@epicurrents/core/dist/util'
 import type {
     AnnotationEventTemplate,
@@ -20,7 +21,7 @@ import type {
     BiosignalConfig,
     BiosignalMontageTemplate,
     BiosignalSetup,
-    BiosignalTrendDerivation,
+    BiosignalTrendType,
     ConfigBiosignalSetup,
     ConfigMapChannels,
     MemoryManager,
@@ -32,8 +33,17 @@ import type {
 import EegEvent from './components/EegEvent'
 import EegLabel from './components/EegLabel'
 import EegService from './service/EegService'
-import { EegAmplitudeIntegratedTrend, EegMontage, EegSetup, EegSourceChannel, EegVideo } from './components'
-import { resolveAeegDerivation } from './util/derivation'
+import {
+    EegAmplitudeIntegratedTrend,
+    EegFrequencyRatioTrend,
+    EegPdBsiTrend,
+    EegSpectrogramTrend,
+    EegMontage,
+    EegSetup,
+    EegSourceChannel,
+    EegTrend,
+    EegVideo,
+} from './components'
 import type { EegModuleSettings, EegResource } from './types'
 import Log from 'scoped-event-log'
 
@@ -73,9 +83,6 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
     static readonly EXTRA_SETUPS = [] as ConfigBiosignalSetup[]
     /** A shorthand for accessing EEG module settings from the global runtime. */
     protected _SETTINGS = (window.__EPICURRENTS__?.RUNTIME?.SETTINGS.modules.eeg as EegModuleSettings) || null
-    /** Trend name prefix for auto-instantiated aEEG trends. One trend per side-entry from
-     *  `settings.aeeg.derivations` is created, named `<prefix>-<entry.id>` (e.g. `aeeg-left`). */
-    protected static readonly AEEG_TREND_PREFIX = 'aeeg'
     /** The display view start can be optionally updated here after signals are processed and actually displayed. */
     protected _displayViewStart: number = 0
     protected _formatHeader: object | null = null
@@ -83,16 +90,22 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
     protected _headers: GenericBiosignalHeader
     /** Tracks whether signal caching has completed at least once for this recording. */
     protected _signalCachingComplete = false
-    /** Sticky flag set the first time a trend setup is requested via
-     *  {@link ensureAeegTrendSetup}. Once true, every subsequent `_setupAeegTrend` invocation
-     *  proceeds, regardless of `settings.aeeg.autoCompute` — so changes that propagate through
-     *  the active-montage handler (filter change, montage swap, settings tweak, recompute
-     *  button) re-instantiate the trends on the new montage. The on-demand semantics still
-     *  hold: nothing happens until the user first opens the strip, but after that, the trends
-     *  stay live for the recording's lifetime. */
-    protected _aeegTrendsEnabled = false
+    /**
+     * Set of trend types that have been explicitly requested via {@link ensureTrendSetup}.
+     * Once a type is in this set every subsequent `_setupTrend` invocation proceeds regardless
+     * of `autoCompute` — so montage changes and recompute requests always rebuild trends for
+     * types the user has already opened. The on-demand semantics still hold: nothing happens
+     * until the UI first requests setup for a given type.
+     */
+    protected _trendsEnabled = new Set<BiosignalTrendType>()
+    /** Set when a `_setupTrend` call is already scheduled for the next microtask.
+     *  Prevents double-computation when `SIGNAL_CACHING_COMPLETE` and the `activeMontage`
+     *  property-change handler both fire in the same synchronous turn. */
+    protected _trendSetupScheduled = false
     protected _setups: BiosignalSetup[] = []
     protected _videos: EegVideo[] = []
+    /** Dedicated trend service — created on first activation, shared by all trends. */
+    protected _trendService: import('@epicurrents/core/dist/types').BiosignalTrendService | null = null
 
     /**
      * Create a new EegRecording.
@@ -137,7 +150,21 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
         this._totalDuration = this._dataDuration
         // Listen to is-active changes.
         this.addEventListener(AssetEvents.ACTIVATE, async () => {
-            // Complete loader setup if not already done.
+            // The ACTIVATE event fires for both 'before' and 'after' phases. Skip 'before':
+            // _isActive is false then, so cacheSignals() would return immediately, and the
+            // 'after' handler would see isReady=true (set by 'before' setup) and skip everything
+            // — leaving the SAB initialized but never populated with actual signal data.
+            if (!this._isActive) {
+                return
+            }
+            // Complete loader setup if not already done. Note: no defensive
+            // `signalCacheStatus = [0, 0]` reset here — `releaseSignalArrays` (Level 1 of
+            // the cache lifecycle, called via `releaseBuffers` on close) drains all
+            // in-flight `_readAndCachePart` chunks before its ack reaches the main thread,
+            // so by the time this branch runs no stale `cache-signals` progress message
+            // can land and bump the status back up. The reset that used to live here was
+            // a band-aid for that race; the structural drain in `GenericSignalReader.
+            // releaseSignalArrays` makes it unnecessary.
             if (!this._service?.isReady && this._state === 'ready') {
                 this.dispatchEvent(EegRecording.EVENTS.INITIAL_SETUP, 'before')
                 if (this._memoryManager) {
@@ -177,6 +204,7 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
                             : chan.sampleCount
                         totalMem += channelSamples + dataFieldsLen
                     }
+                    // TODO: Remove once rolling window cache is finalized.
                     Log.info(
                         `EegRecording memory request: useRolling=${useRolling} ` +
                         `maxCache=${maxCacheBytes}B cap=${blockDurationCap}s ideal=${idealBlockDuration}s ` +
@@ -279,6 +307,9 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
                     }
                     Log.debug(`Data cache setup complete.`, SCOPE)
                 }
+                // Set up the dedicated trend service, connecting it to the EDF SAB.
+                // Use the real worker when SAB is available, substitute otherwise.
+                await this._initTrendService()
                 // Add default setups and montages first as some of the extra montages may use them.
                 await this.addDefaultSetupsAndMontages()
                 // Add possible extra setups.
@@ -305,15 +336,44 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
                 // Initial setup complete.
                 Log.debug(`EEG recording initial setup complete.`, SCOPE)
                 this.dispatchEvent(EegRecording.EVENTS.INITIAL_SETUP, 'after')
-                // Auto-instantiate the aEEG trend on every new active montage. The trend is only
-                // started after signal caching completes (computeTrend reads from the same cache
-                // and would emit per-epoch errors otherwise). Compute itself depends on either
-                // `settings.aeeg.autoCompute` being true OR an explicit setup request via
-                // {@link ensureAeegTrendSetup} (user toggling the trend strip on from the menu).
-                this.onPropertyChange('activeMontage', () => this._setupAeegTrend(), this.id)
+                // Trends read raw EDF signals from the SAB directly — they are montage-independent.
+                // Do NOT subscribe to activeMontage changes here; a montage switch must not trigger
+                // a trend rebuild.
+                //
+                // Progressive computation: trends start as soon as the first full epoch is cached
+                // and extend automatically as caching advances. Each signalCacheStatus change
+                // either builds the trend objects (first time) or extends existing ones.
+                this.onPropertyChange('signalCacheStatus', () => {
+                    if (!this._trendService) {
+                        return
+                    }
+                    // Forward interruptions whenever we have new ones — the processor needs
+                    // them to map recording time → data time correctly for gap-containing files.
+                    if (this._interruptions.size > 0) {
+                        this._trendService.setInterruptions(this._interruptions)
+                    }
+                    const cachedEnd = this._signalCacheStatus[1]
+                    if (this._trends.size === 0) {
+                        // First epoch available — try to build trend objects now.
+                        this._scheduleTrendSetup()
+                    } else {
+                        // Trends already exist — extend to cover newly cached signal.
+                        this._extendTrendsToCache(cachedEnd)
+                    }
+                }, this.id)
                 this.addEventListener(BiosignalResourceEvents.SIGNAL_CACHING_COMPLETE, () => {
                     this._signalCachingComplete = true
-                    this._setupAeegTrend()
+                    if (this._trendService) {
+                        if (this._interruptions.size > 0) {
+                            this._trendService.setInterruptions(this._interruptions)
+                        }
+                        // Final pass to catch any epochs between the last cache update
+                        // and the true recording end.
+                        this._extendTrendsToCache(this._signalCacheStatus[1])
+                    }
+                    // Schedule setup for the case where trends were not yet built
+                    // (e.g. autoCompute=false and the user toggled the strip on late).
+                    this._scheduleTrendSetup()
                 }, this.id)
                 await this.cacheSignals()
                 this.dispatchEvent(BiosignalResourceEvents.SIGNAL_CACHING_COMPLETE)
@@ -369,13 +429,26 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
     set isActive (value: boolean) {
         // Check if disabling has side effects.
         if (this._SETTINGS?.unloadOnClose && this._service?.isReady) {
-            // If the resource is to be unloaded on close, we need to dispatch the events manually.
+            // CRITICAL: flip `_isActive` synchronously BEFORE the async unload
+            // kicks off, otherwise the runtime's `getActiveResource` iteration
+            // can still see this recording as active during the brief (drain-
+            // widened) window between "user clicks new" and "old's unload
+            // completes" — and the newly-mounted EegViewer/EegPlot will then
+            // capture *this* (about-to-be-released) resource as its RESOURCE
+            // instead of the new one, leading to "signal cache has not been
+            // set up yet" errors as soon as the release ack lands and nulls
+            // the mutex. Synchronous flip means the iteration finds the new
+            // recording correctly; unload runs in the background and any
+            // listeners that care about the actual teardown completion can
+            // subscribe to the service's `isReady` property change instead.
+            const prev = this._isActive
             this.dispatchEvent(value ? AssetEvents.ACTIVATE : AssetEvents.DEACTIVATE, 'before')
-            this.dispatchPropertyChangeEvent('isActive', value, this.isActive, 'before')
-            this.unload().then(() => {
-                this._isActive = value
-                this.dispatchPropertyChangeEvent('isActive', value, this.isActive, 'after')
-                this.dispatchEvent(value ? AssetEvents.ACTIVATE : AssetEvents.DEACTIVATE, 'after')
+            this.dispatchPropertyChangeEvent('isActive', value, prev, 'before')
+            this._isActive = value
+            this.dispatchPropertyChangeEvent('isActive', value, prev, 'after')
+            this.dispatchEvent(value ? AssetEvents.ACTIVATE : AssetEvents.DEACTIVATE, 'after')
+            this.unload().catch((e: unknown) => {
+                Log.error(`Async unload failed: ${(e as Error)?.message ?? e}`, SCOPE)
             })
         } else {
             // Default to base class implementation.
@@ -401,91 +474,333 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
      * available. Calling this before `activeMontage` is set is also safe; the activeMontage
      * property-change handler will retry.
      */
-    ensureAeegTrendSetup () {
-        // Sticky enable: once the UI has asked for trends, every subsequent setup invocation
-        // (active-montage change, recompute, etc.) proceeds. When signal caching is still in
-        // progress, setting the flag also makes the `SIGNAL_CACHING_COMPLETE` handler run setup
-        // once data is available.
-        this._aeegTrendsEnabled = true
-        if (this._signalCachingComplete) {
-            this._setupAeegTrend()
+    /**
+     * Request setup of the given trend type. Idempotent — once a type has been requested,
+     * every subsequent `_buildAmplitudeTrends` call proceeds without further prompting.
+     * Triggers immediately using whatever signal is already cached; the `signalCacheStatus`
+     * listener then extends computation as more data arrives.
+     */
+    /**
+     * Clear all previously-enabled trend types. Call before `ensureTrendSetup` when
+     * switching trend types so that stale types don't cause unintended builds.
+     */
+    clearTrendTypes () {
+        this._trendsEnabled.clear()
+    }
+
+    ensureTrendSetup (type: BiosignalTrendType = 'amplitude') {
+        this._trendsEnabled.add(type)
+        // Trigger immediately — _buildAmplitudeTrends now works on partial data,
+        // so there is no reason to wait for SIGNAL_CACHING_COMPLETE.
+        this._scheduleTrendSetup()
+    }
+
+    /**
+     * Create and connect the dedicated trend service using the EDF reader's output SAB.
+     * Trends require SharedArrayBuffer: `TrendProcessor` reads raw electrode signals
+     * directly from the SAB. Silently skipped when SAB is unavailable.
+     */
+    protected async _initTrendService () {
+        const cache = this.dataCache
+        if (!cache || !('buffer' in cache)) {
+            return
+        }
+        const service = new TrendService()
+        // Per-channel modality list lets the trend worker restrict Common Average Reference
+        // to EEG channels only. Without this, a single non-EEG channel (EKG, photic, status)
+        // with rail-scale voltages dominates the mean and turns every derived signal into
+        // essentially −CAR, collapsing the spectral asymmetry that ratio and pdBSI rely on.
+        const signalModalities = this._channels.map(c => c.modality)
+        const result = await service.setupWorker(
+            cache as import('asymmetric-io-mutex').MutexExportProperties,
+            this.dataDuration,
+            this.totalDuration,
+            'eeg',
+            undefined,
+            signalModalities,
+        )
+        if (result) {
+            this._trendService = service
+        }
+    }
+
+    protected _scheduleTrendSetup () {
+        if (this._trendSetupScheduled) {
+            return
+        }
+        this._trendSetupScheduled = true
+        queueMicrotask(() => {
+            this._trendSetupScheduled = false
+            this._buildAmplitudeTrends()
+            this._buildSpectrogramTrends()
+            this._buildRatioTrends()
+            this._buildPdBsiTrends()
+        })
+    }
+
+    /**
+     * Register a trend on this recording and kick off an initial computation up to
+     * `initialCachedEnd` seconds. After that, `_extendTrendsToCache` drives subsequent
+     * updates as more signal arrives.
+     */
+    protected _setupTrend (trend: EegTrend, initialCachedEnd: number) {
+        // Remove any stale trend with the same name before re-adding.
+        if (this.getTrend(trend.name)) {
+            this.removeTrend(trend.name)
+        }
+        if (!this.addTrend(trend)) {
+            return
+        }
+        // When a computation finishes, immediately check whether more signal has arrived
+        // since we started — if so, queue the next chunk.
+        trend.addEventListener('trend-complete', () => {
+            Log.debug(`[trend] '${trend.name}' complete up to ${trend.computedUpToSec}s → extend to ${this._signalCacheStatus[1]}s`, SCOPE)
+            this._extendTrendsToCache(this._signalCacheStatus[1])
+        }, this.id)
+        const epochLength = trend.epochLength
+        const alignedEnd = Math.floor(initialCachedEnd / epochLength) * epochLength
+        Log.debug(`[trend] _setupTrend '${trend.name}' epochLen=${epochLength}s initialCached=${initialCachedEnd}s alignedEnd=${alignedEnd}s`, SCOPE)
+        if (alignedEnd >= epochLength) {
+            trend.computeTrend([0, alignedEnd]).catch((error: unknown) => {
+                Log.warn(`Initial compute of trend '${trend.name}' failed: ${error}`, SCOPE)
+            })
         }
     }
 
     /**
-     * For each entry in `settings.aeeg.derivations`, try its candidate list against the active
-     * montage and create a separate trend with the first one that resolves. Standard aEEG layout
-     * is two trends (one per hemisphere) — entries are typically `[left, right]`. Stale trends
-     * from earlier active montages are torn down first. A no-op when no active montage exists,
-     * signal caching has not completed, or neither `autoCompute` is enabled nor a setup request
-     * is pending via {@link ensureAeegTrendSetup}.
+     * Extend all registered trends to cover newly cached signal up to `cachedEndSec`.
+     * Only computes complete epochs (aligned to epochLength); skips trends that are
+     * already up to date or currently computing.
      */
-    protected _setupAeegTrend () {
-        const settings = this._SETTINGS
-        if (!settings?.aeeg || !this._signalCachingComplete) {
+    protected _extendTrendsToCache (cachedEndSec: number) {
+        if (!this._trends.size) {
             return
         }
-        // Compute when explicitly enabled in settings OR when the UI has previously requested
-        // setup (`_aeegTrendsEnabled`). The enabled flag is sticky: once the user opens the
-        // strip, subsequent active-montage changes still rebuild the trends on the new montage.
-        if (!settings.aeeg.autoCompute && !this._aeegTrendsEnabled) {
-            return
-        }
-        const montage = this._activeMontage
-        if (!montage) {
-            return
-        }
-        const epochLength = settings.trends?.amplitude?.epochLength ?? 15
-        // Tear down any stale `aeeg-*` trends from the previous active montage / setup pass.
-        for (const trendName of Object.keys(montage.trends)) {
-            if (trendName.startsWith(`${EegRecording.AEEG_TREND_PREFIX}-`)) {
-                montage.removeTrend(trendName)
-            }
-        }
-        for (const entry of settings.aeeg.derivations) {
-            let resolvedDerivation: BiosignalTrendDerivation | null = null
-            let resolvedSubLabel = ''
-            for (const candidate of entry.candidates) {
-                const resolved = resolveAeegDerivation(montage, candidate.source, candidate.reference)
-                if (resolved) {
-                    resolvedDerivation = {
-                        sourceChannels: resolved.sourceChannels,
-                        referenceChannels: resolved.referenceChannels,
-                        type: 'amplitude',
-                        sourceFunction: 'average',
-                        referenceFunction: 'average',
-                    }
-                    resolvedSubLabel = candidate.reference
-                        ? `${candidate.source}-${candidate.reference}`
-                        : candidate.source
-                    break
-                }
-            }
-            if (!resolvedDerivation) {
-                Log.debug(
-                    `No aEEG candidate resolved for '${entry.label}' against montage '${montage.name}'.`,
-                    SCOPE
-                )
+        for (const trend of this._trends.values()) {
+            const epochLength = trend.epochLength
+            const alignedEnd = Math.floor(cachedEndSec / epochLength) * epochLength
+            Log.debug(`[trend] _extendTrendsToCache '${trend.name}' computing=${(trend as unknown as { _computing?: boolean })._computing} upTo=${trend.computedUpToSec}s → alignedEnd=${alignedEnd}s`, SCOPE)
+            if (alignedEnd <= trend.computedUpToSec) {
                 continue
             }
-            const trendName = `${EegRecording.AEEG_TREND_PREFIX}-${entry.id}`
-            const trend = new EegAmplitudeIntegratedTrend(
-                trendName,
-                resolvedSubLabel,
-                resolvedDerivation,
-                montage.service,
-                {
-                    color: entry.color,
-                    epochLength,
-                }
-            )
-            if (!montage.addTrend(trend)) {
-                continue
-            }
-            trend.computeTrend().catch((error: unknown) => {
-                Log.warn(`Compute of aEEG trend '${trendName}' failed: ${error}`, SCOPE)
+            trend.computeTrend([trend.computedUpToSec, alignedEnd]).catch((error: unknown) => {
+                Log.warn(`Extend of trend '${trend.name}' failed: ${error}`, SCOPE)
             })
         }
+    }
+
+    /**
+     * Create and register `EegAmplitudeIntegratedTrend` objects for each entry in
+     * `settings.aeeg.derivations` that can be resolved against the recording setup.
+     * Computation starts immediately up to the currently cached signal end and is
+     * extended automatically as caching progresses.
+     */
+    protected _buildAmplitudeTrends () {
+        const settings = this._SETTINGS
+        if (!settings?.aeeg || !this._setup) {
+            return
+        }
+        if (!settings.aeeg.autoCompute && !this._trendsEnabled.has('amplitude')) {
+            return
+        }
+        // Skip if amplitude trends already exist. Check the type explicitly so that
+        // spectrogram (or other) trends already in the map don't block amplitude builds
+        // — the two types can coexist briefly during a type switch.
+        const hasAmplitude = [...this._trends.values()].some(t => t.derivation.type === 'amplitude')
+        if (hasAmplitude) {
+            return
+        }
+        const epochLength = settings.trends?.amplitude?.epochLength ?? 5
+        if (!this._trendService) {
+            Log.warn(`Cannot build trends: trend service not initialised yet.`, SCOPE)
+            return
+        }
+        const cachedEnd = this._signalCacheStatus[1]
+        if (cachedEnd < epochLength) {
+            Log.debug(`Not enough signal cached yet (${cachedEnd}s < ${epochLength}s epoch); deferring trend setup.`, SCOPE)
+            return
+        }
+        const service = this._trendService
+        for (const entry of settings.aeeg.derivations) {
+            const trend = new EegAmplitudeIntegratedTrend(
+                `aeeg-${entry.id}`,
+                entry.label,
+                service,
+                { epochLength }
+            )
+            const resolved = trend.tryResolveDerivation(this._setup, entry.candidates)
+            if (!resolved) {
+                Log.debug(`No aEEG candidate resolved for '${entry.label}'.`, SCOPE)
+                continue
+            }
+            this._setupTrend(trend, cachedEnd)
+        }
+    }
+
+    /**
+     * Create and register `EegSpectrogramTrend` objects for each entry in
+     * `settings.aeeg.derivations` (reuses the same L/R derivation candidates).
+     * Follows the same progressive-caching pattern as `_buildAmplitudeTrends`.
+     */
+    protected _buildSpectrogramTrends () {
+        const settings = this._SETTINGS
+        const existingSpec = [...this._trends.values()].filter(t => t.derivation.type === 'spectrogram').map(t => t.name)
+        Log.debug(`[trend] _buildSpectrogramTrends called — trendsEnabled=[${[...this._trendsEnabled]}] existing=[${existingSpec}] setup=${!!this._setup} trendService=${!!this._trendService} cachedEnd=${this._signalCacheStatus[1]}s`, SCOPE)
+        if (!settings?.aeeg || !this._setup) {
+            Log.debug(`[trend] _buildSpectrogramTrends early-exit: no aeeg settings or no setup`, SCOPE)
+            return
+        }
+        if (!this._trendsEnabled.has('spectrogram')) {
+            Log.debug(`[trend] _buildSpectrogramTrends early-exit: 'spectrogram' not in trendsEnabled`, SCOPE)
+            return
+        }
+        if (existingSpec.length > 0) {
+            Log.debug(`[trend] _buildSpectrogramTrends early-exit: already built [${existingSpec}]`, SCOPE)
+            return  // already built
+        }
+        const specCfg  = (settings.trends as Record<string, unknown> & { spectrogram?: { epochLength?: number, maxFreqHz?: number, averageReference?: boolean } })?.spectrogram
+        const epochLength = specCfg?.epochLength ?? 1
+        const maxFreqHz   = specCfg?.maxFreqHz   ?? 30
+        if (!this._trendService) {
+            Log.warn(`Cannot build spectrogram trends: trend service not initialised yet.`, SCOPE)
+            return
+        }
+        const cachedEnd = this._signalCacheStatus[1]
+        if (cachedEnd < epochLength) {
+            return
+        }
+        if (!(this._samplingRate ?? 0)) {
+            Log.warn(`Cannot build spectrogram trends: input sampling rate unknown.`, SCOPE)
+            return
+        }
+        // Fixed output bin count: one per Hz, matching maxFreqHz.
+        // TrendProcessor aggregates raw FFT bins into these output bins so the
+        // signal layout is epoch-length-independent (always maxFreqHz bins/epoch).
+        const frequencyBins = maxFreqHz
+        const averageReference = specCfg?.averageReference ?? false
+        const service = this._trendService
+        for (const entry of settings.aeeg.derivations) {
+            const trend = new EegSpectrogramTrend(
+                `spectrogram-${entry.id}`,
+                entry.label,
+                service,
+                { epochLength, maxFreqHz, frequencyBins },
+            )
+            const resolved = trend.tryResolveDerivation(this._setup, entry.candidates, { averageReference })
+            if (!resolved) {
+                Log.debug(`No spectrogram candidate resolved for '${entry.label}'.`, SCOPE)
+                continue
+            }
+            this._setupTrend(trend, cachedEnd)
+        }
+    }
+
+    /**
+     * Create and register `EegFrequencyRatioTrend` objects for each entry in
+     * `settings.aeeg.derivations` (one trend per hemisphere using the same L/R
+     * derivation candidates as aEEG). Follows the same progressive-caching pattern
+     * as the other build hooks.
+     */
+    protected _buildRatioTrends () {
+        const settings = this._SETTINGS
+        if (!settings?.aeeg || !this._setup) {
+            return
+        }
+        if (!this._trendsEnabled.has('ratio')) {
+            return
+        }
+        const hasRatio = [...this._trends.values()].some(t => t.derivation.type === 'ratio')
+        if (hasRatio) {
+            return
+        }
+        const ratioCfg = settings.trends?.ratio
+        const epochLength = ratioCfg?.epochLength ?? 2
+        // Index-copy the band arrays into plain tuples. The settings store is a Vue
+        // reactive Proxy and arrays on it are Proxy-wrapped — passing one through
+        // postMessage triggers a DataCloneError because Proxies aren't structured-clonable.
+        const numeratorBand: [number, number] = [
+            ratioCfg?.numeratorBand?.[0] ?? 4,
+            ratioCfg?.numeratorBand?.[1] ?? 8,
+        ]
+        const denominatorBand: [number, number] = [
+            ratioCfg?.denominatorBand?.[0] ?? 8,
+            ratioCfg?.denominatorBand?.[1] ?? 13,
+        ]
+        const averageReference = ratioCfg?.averageReference ?? true
+        if (!this._trendService) {
+            Log.warn(`Cannot build ratio trends: trend service not initialised yet.`, SCOPE)
+            return
+        }
+        const cachedEnd = this._signalCacheStatus[1]
+        if (cachedEnd < epochLength) {
+            return
+        }
+        const service = this._trendService
+        for (const entry of settings.aeeg.derivations) {
+            const trend = new EegFrequencyRatioTrend(
+                `ratio-${entry.id}`,
+                entry.label,
+                service,
+                { epochLength, numeratorBand, denominatorBand },
+            )
+            const resolved = trend.tryResolveDerivation(this._setup, entry.candidates, { averageReference })
+            if (!resolved) {
+                Log.debug(`No ratio candidate resolved for '${entry.label}'.`, SCOPE)
+                continue
+            }
+            this._setupTrend(trend, cachedEnd)
+        }
+    }
+
+    /**
+     * Create and register a single `EegPdBsiTrend` covering all configured homologous
+     * electrode pairs (`settings.pdbsi.pairs`). One trend, one composite per-epoch value.
+     */
+    protected _buildPdBsiTrends () {
+        const settings = this._SETTINGS
+        if (!settings?.pdbsi || !this._setup) {
+            return
+        }
+        if (!this._trendsEnabled.has('pdbsi')) {
+            return
+        }
+        const hasPdbsi = [...this._trends.values()].some(t => t.derivation.type === 'pdbsi')
+        if (hasPdbsi) {
+            return
+        }
+        const mathCfg = settings.trends?.pdbsi
+        const epochLength = mathCfg?.epochLength ?? 2
+        // Same Proxy-cloning workaround as in `_buildRatioTrends`.
+        const band: [number, number] = [
+            mathCfg?.band?.[0] ?? 1,
+            mathCfg?.band?.[1] ?? 4,
+        ]
+        const averageReference = mathCfg?.averageReference ?? true
+        const pairs = settings.pdbsi.pairs
+        if (!pairs?.length) {
+            Log.debug(`Cannot build pdBSI trend: no pair config in settings.pdbsi.pairs.`, SCOPE)
+            return
+        }
+        if (!this._trendService) {
+            Log.warn(`Cannot build pdBSI trend: trend service not initialised yet.`, SCOPE)
+            return
+        }
+        const cachedEnd = this._signalCacheStatus[1]
+        if (cachedEnd < epochLength) {
+            return
+        }
+        const trend = new EegPdBsiTrend(
+            'pdbsi',
+            'pdBSI',
+            this._trendService,
+            { epochLength, band },
+        )
+        const resolved = trend.tryResolvePairs(this._setup, pairs, { averageReference })
+        if (!resolved) {
+            Log.debug(`pdBSI trend: no configured pair resolves against the recording setup.`, SCOPE)
+            return
+        }
+        this._setupTrend(trend, cachedEnd)
     }
 
     async addDefaultSetupsAndMontages () {
@@ -570,16 +885,38 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
                 { label: label }
             )
             montage.mapChannels(config)
-            // Add new montage to the list.
+            // Set up the worker-side cache BEFORE publishing the montage on the
+            // `montages` property. The property-change dispatch is synchronous
+            // and fans out to Vue reactivity (EegViewer.montagesChanged →
+            // setChannelLayout → channel property change → EegPlot.updateTraces
+            // → getAllSignals). If we set the property first, those sync
+            // listeners post `get-signals` to the (substitute or real) worker
+            // before the `setup-cache` / `setup-input-mutex` commission has
+            // even been queued — the worker's MontageProcessor `_cache` is
+            // still `null`, getSignals errors with "signal cache has not been
+            // set up yet", and the UI never paints. Awaiting setup here
+            // serialises the commission round-trip and lets listeners see a
+            // ready montage.
+            if (this._mutexProps) {
+                await montage.setupServiceWithInputMutex(this._mutexProps)
+            } else if (this._cacheProps) {
+                await montage.setupServiceWithCache(this._cacheProps)
+            }
+            // Set interruptions before the property change too so any listener
+            // that asks about gaps gets the same answer it would after a full
+            // setup pass.
+            montage.setInterruptions(this._interruptions)
+            // Now publish to the world.
             this._setPropertyValue('montages', [...this.montages, montage])
+            return montage
         }
-        // Set up the proper data cache.
+        // Existing-montage path: cache may have been re-set up upstream
+        // (mutex re-init), so still wire it.
         if (this._mutexProps) {
             await montage.setupServiceWithInputMutex(this._mutexProps)
         } else if (this._cacheProps) {
-            montage.setupServiceWithCache(this._cacheProps)
+            await montage.setupServiceWithCache(this._cacheProps)
         }
-        // Set interruptions.
         montage.setInterruptions(this._interruptions)
         return montage
     }

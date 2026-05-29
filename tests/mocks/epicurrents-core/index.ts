@@ -214,6 +214,19 @@ export const BiosignalMutex = {
     SIGNAL_DATA_POS: 4
 }
 
+// Minimal stub for the trend asset hierarchy. EegTrend extends this; tests
+// don't exercise trend math, but the constructor must not throw.
+export class GenericBiosignalTrend {
+    name: string = ''
+    derivation: any = null
+    epochLength: number = 0
+    samplingRate: number = 0
+    signal: any[] = []
+    constructor (..._args: any[]) {}
+    setupTrend (..._args: any[]) {}
+    async computeTrend (..._args: any[]) { return Promise.resolve() }
+}
+
 // util stubs
 export const MB_BYTES = 1024*1024
 export const INDEX_NOT_ASSIGNED = -1

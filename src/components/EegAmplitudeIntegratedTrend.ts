@@ -5,53 +5,27 @@
  * @license    Apache-2.0
  */
 
-import { GenericBiosignalTrend } from '@epicurrents/core'
-import type {
-    BiosignalMontageService,
-    BiosignalTrend,
-    BiosignalTrendDerivation,
-    SettingsColor,
-} from '@epicurrents/core/dist/types'
+import type { BiosignalTrendService } from '@epicurrents/core/dist/types'
+import EegTrend from './EegTrend'
 
 /**
- * Amplitude-integrated EEG (aEEG) trend. The clinical convention plots a bipolar derived signal as
- * a vertical line per epoch — line height represents amplitude variability over that epoch. Two
- * homologous trends (one per hemisphere) are typically displayed side-by-side.
+ * Amplitude-integrated EEG (aEEG) trend. Fixes the trend type to `'amplitude'` and
+ * supplies NICU-standard defaults (5 s epochs, 2 / 15 Hz band-pass).
  *
- * The math itself is generic (band-pass → rectify → envelope → semi-log compression); this subclass
- * exists to fix the trend `type`, supply NICU-standard defaults (15 s epochs, 2 / 15 Hz band), and
- * carry the per-trend `color` used by the rendering layer.
+ * Display properties such as band colour live in the interface's `eeg.trends.aeeg`
+ * settings rather than on the trend object, keeping this class purely computational.
  */
-export default class EegAmplitudeIntegratedTrend extends GenericBiosignalTrend {
-    /** Display color for this trend's band — read by the trend strip component. */
-    color: SettingsColor
-
+export default class EegAmplitudeIntegratedTrend extends EegTrend {
     constructor (
         name: string,
         label: string,
-        derivation: Omit<BiosignalTrendDerivation, 'type'>,
-        service: BiosignalMontageService,
-        options: {
-            /** Epoch length in seconds (default 15 s). */
-            epochLength?: number
-            /** Output sampling rate in Hz (default `2 / epochLength` so each epoch yields a min/max pair). */
-            samplingRate?: number
-            /** Display color for the band. Defaults to a neutral purple if omitted. */
-            color?: SettingsColor
-            extraProperties?: Partial<BiosignalTrend>
-        } = {}
+        service: BiosignalTrendService,
+        options: { epochLength?: number } = {}
     ) {
-        const epochLength = options.epochLength ?? 15
-        const samplingRate = options.samplingRate ?? 2/epochLength
-        super(
-            name,
-            label,
-            { ...derivation, type: 'amplitude' },
-            samplingRate,
+        const epochLength = options.epochLength ?? 5
+        super(name, label, 'amplitude', service, {
             epochLength,
-            service,
-            options.extraProperties
-        )
-        this.color = options.color ?? [0.55, 0.40, 0.85, 0.9]
+            samplingRate: 1 / epochLength,
+        })
     }
 }

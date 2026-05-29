@@ -68,10 +68,41 @@ const EegSettings: EegModuleSettings = {
         amplitude: {
             bandHighpass: 2,
             bandLowpass: 15,
-            epochLength: 15,
+            epochLength: 5,
             envelopeMethod: 'minmax',
             scaleCompression: 'semilog',
         },
+        spectrogram: {
+            epochLength: 1,    // 1 s epochs → 1 Hz time resolution
+            maxFreqHz:   30,   // keep 0–30 Hz (covers delta through gamma for EEG)
+            mode: 'proportion',  // proportion is faster to draw and a better default
+            averageReference: false,
+        },
+        ratio: {
+            epochLength: 2,
+            numeratorBand: [4, 8],     // theta — TAR numerator
+            denominatorBand: [8, 13],  // alpha — TAR denominator
+            averageReference: true,
+        },
+        pdbsi: {
+            epochLength: 2,
+            band: [1, 4],              // delta — ELECTRA-STROKE
+            averageReference: true,
+        },
+    },
+    pdbsi: {
+        // Standard homologous 10-20 pairs (front to back). Pairs that don't resolve
+        // against a given recording's setup are silently skipped at trend-build time.
+        pairs: [
+            { left: 'Fp1', right: 'Fp2' },
+            { left: 'F3',  right: 'F4'  },
+            { left: 'F7',  right: 'F8'  },
+            { left: 'C3',  right: 'C4'  },
+            { left: 'T3',  right: 'T4'  },
+            { left: 'T5',  right: 'T6'  },
+            { left: 'P3',  right: 'P4'  },
+            { left: 'O1',  right: 'O2'  },
+        ],
     },
     aeeg: {
         // Off by default — trend compute runs in the same montage worker as the initial signal
