@@ -30,6 +30,31 @@ export interface EegResource extends BiosignalResource {
     /** Maximum sampling rate of displayed signals. */
     maxSamplingRate: number
     /**
+     * Register one cascade montage per entry whose source candidates resolve against the keyed setup on this recording.
+     * The `entriesBySetup` map mirrors the `extraMontages` shape: setup name → entries that should build against that
+     * setup. For each entry, candidates are tried in priority order against the keyed setup; the first one whose name
+     * or label matches a channel wins. Entries whose candidates all fail to resolve are silently skipped, as are setups
+     * not registered on this recording.
+     * @param entriesBySetup - Per-setup cascade definitions; see `EegCascadeMontage` for the per-row slice semantics.
+     */
+    addCascadeMontagesFromEntries (entriesBySetup: {
+        [setup: string]: {
+            id: string,
+            label: string,
+            candidates: string[],
+            rowCount: number,
+            pageLength: number,
+            /** Initial sensitivity for the cascade montage (units match the recording's). */
+            sensitivity?: number,
+            /** Initial highpass filter (Hz). 0 or omitted = off. */
+            highpass?: number,
+            /** Initial lowpass filter (Hz). 0 or omitted = off. */
+            lowpass?: number,
+            /** Initial notch filter (Hz). 0 or omitted = off. */
+            notch?: number,
+        }[]
+    }): Promise<void>
+    /**
      * Add a new montage to the resource.
      * @param name - Unique name for the montage.
      * @param label - Human-readable label for the montage (displayed in UI).

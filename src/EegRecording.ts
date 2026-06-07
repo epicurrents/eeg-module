@@ -35,6 +35,7 @@ import EegLabel from './components/EegLabel'
 import EegService from './service/EegService'
 import {
     EegAmplitudeIntegratedTrend,
+    EegCascadeMontage,
     EegFrequencyRatioTrend,
     EegPdBsiTrend,
     EegSpectrogramTrend,
@@ -586,6 +587,98 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
             trend.computeTrend([trend.computedUpToSec, alignedEnd]).catch((error: unknown) => {
                 Log.warn(`Extend of trend '${trend.name}' failed: ${error}`, SCOPE)
             })
+        }
+    }
+
+    /**
+     * Override of `GenericBiosignalResource._constructCascadeMontage` so the EEG resource's `addCascadeMontage`
+     * produces `EegCascadeMontage` instances — channels wrapped in `EegMontageChannel`, worker pinned to `eeg-montage`.
+     */
+    protected _constructCascadeMontage (
+        name: string,
+        setup: BiosignalSetup,
+        sourceLabel: string,
+        rowCount: number,
+        pageLength: number,
+        config?: { label: string },
+    ) {
+        return new EegCascadeMontage(
+            name, this, setup, sourceLabel, rowCount, pageLength,
+            this._memoryManager || undefined, config,
+        )
+    }
+
+    async addCascadeMontagesFromEntries (entriesBySetup: {
+        [setup: string]: {
+            id: string,
+            label: string,
+            candidates: string[],
+            rowCount: number,
+            pageLength: number,
+            sensitivity?: number,
+            highpass?: number,
+            lowpass?: number,
+            notch?: number,
+        }[]
+    }) {
+        if (!entriesBySetup || !this._setups.length) {
+            return
+        }
+        for (const [setupName, entries] of Object.entries(entriesBySetup)) {
+            const setup = this._setups.find(s => s.name === setupName)
+            if (!setup) {
+                Log.debug(
+                    `Cascade montage setup '${setupName}' not found on this recording; skipping ${entries.length} entr${entries.length === 1 ? 'y' : 'ies'}.`,
+                    SCOPE,
+                )
+                continue
+            }
+            for (const entry of entries) {
+                const montageName = `cascade:${entry.id}`
+                if (this.montages.find(m => m.name === montageName)) {
+                    continue
+                }
+                // Pick the first candidate that matches a channel in the keyed setup.
+                const chosenSource = entry.candidates.find(c => setup.channels.some(
+                    chan => chan.name === c || chan.label === c
+                ))
+                if (!chosenSource) {
+                    Log.debug(
+                        `No cascade source resolved for '${entry.label}' in setup '${setupName}' from candidates [${entry.candidates.join(', ')}].`,
+                        SCOPE,
+                    )
+                    continue
+                }
+                const created = await this.addCascadeMontage(
+                    montageName,
+                    entry.label,
+                    setup,
+                    chosenSource,
+                    entry.rowCount,
+                    entry.pageLength,
+                )
+                if (created) {
+                    // Apply per-entry display defaults. Cascade montages have `applyToMontage`
+                    // true so these values stay on the montage; reader sites surface them while
+                    // the montage is active.
+                    if (typeof entry.sensitivity === 'number') {
+                        created.sensitivity = entry.sensitivity
+                    }
+                    if (typeof entry.highpass === 'number') {
+                        await created.setHighpassFilter(entry.highpass)
+                    }
+                    if (typeof entry.lowpass === 'number') {
+                        await created.setLowpassFilter(entry.lowpass)
+                    }
+                    if (typeof entry.notch === 'number') {
+                        await created.setNotchFilter(entry.notch)
+                    }
+                    Log.debug(
+                        `Added cascade montage '${entry.label}' for source '${chosenSource}' in setup '${setupName}'.`,
+                        SCOPE,
+                    )
+                }
+            }
         }
     }
 

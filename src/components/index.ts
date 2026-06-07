@@ -1,4 +1,5 @@
 import EegAmplitudeIntegratedTrend from './EegAmplitudeIntegratedTrend'
+import EegCascadeMontage from './EegCascadeMontage'
 import EegFrequencyRatioTrend from './EegFrequencyRatioTrend'
 import EegPdBsiTrend from './EegPdBsiTrend'
 import EegSpectrogramTrend from './EegSpectrogramTrend'
@@ -13,6 +14,7 @@ import EegVideo from './EegVideo'
 
 export {
     EegAmplitudeIntegratedTrend,
+    EegCascadeMontage,
     EegFrequencyRatioTrend,
     EegPdBsiTrend,
     EegSpectrogramTrend,

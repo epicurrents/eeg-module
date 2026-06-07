@@ -32,6 +32,9 @@ export class GenericBiosignalMontage {
     _config: any
     channels: any[] = []
     _isActive: boolean = false
+    pageLength: number | null = null
+    pageStep: number | null = null
+    timebaseUnit: string | null = null
     constructor(name: string, recording: any, setup: any, template?: any, manager?: any, config?: any) {
         this.name = name
         this.recording = recording
@@ -42,10 +45,83 @@ export class GenericBiosignalMontage {
     get isActive() { return this._isActive }
     set isActive(v: boolean) { this._isActive = v }
     getMainProperties() { return new Map() }
+    async getAllSignals(_range: number[], _config?: any): Promise<any> { return null }
     async releaseBuffers() { return Promise.resolve() }
     async unload() { return Promise.resolve() }
     async setupServiceWithInputMutex(_props: any) { return true }
     setupServiceWithCache(_props: any) { return true }
+}
+
+export class GenericBiosignalCascadeMontage extends GenericBiosignalMontage {
+    protected _rowCount: number
+    protected _sourceLabel: string
+    constructor(
+        name: string,
+        recording: any,
+        setup: any,
+        sourceLabel: string,
+        rowCount: number,
+        pageLength: number,
+        manager?: any,
+        config?: any,
+    ) {
+        super(name, recording, setup, undefined, manager, config)
+        this._rowCount = rowCount
+        this._sourceLabel = sourceLabel
+        this.pageLength = pageLength
+        this.pageStep = rowCount * pageLength
+        this.timebaseUnit = 'secPerPage'
+    }
+    protected _createChannel(_src: any, _rowIndex: number): any {
+        // Modality subclasses override.
+        return null
+    }
+    protected _resolveSourceChannel(): any {
+        return this._setup?.channels?.find(
+            (c: any) => c.label === this._sourceLabel || c.name === this._sourceLabel
+        ) ?? null
+    }
+    mapChannels(): any[] {
+        const src = this._resolveSourceChannel()
+        if (!src) {
+            return []
+        }
+        const channels = Array.from(
+            { length: this._rowCount },
+            (_, i) => this._createChannel(src, i),
+        )
+        this.channels = channels
+        return channels
+    }
+    // Mirror of production slice logic so tests exercise the same shape — fetches one source
+    // channel from the recording's raw-signal path (no montage worker) and slices into rowCount.
+    async getAllSignals(range: number[], _config?: any): Promise<any> {
+        if (!this.channels.length) {
+            return null
+        }
+        const pageLength = this.pageLength ?? (range[1] - range[0])
+        const expandedRange = [range[0], range[0] + this._rowCount * pageLength]
+        const sourceIdx = this.channels[0]?.active
+        if (typeof sourceIdx !== 'number') {
+            return null
+        }
+        const response = await this.recording?.getAllRawSignals?.(expandedRange, { include: [sourceIdx] })
+        if (!response?.signals?.length) {
+            return null
+        }
+        const src = response.signals[0]
+        const samplesPerRow = Math.round(pageLength * src.samplingRate)
+        const signals: { data: Float32Array, samplingRate: number }[] = []
+        for (let i = 0; i < this._rowCount; i++) {
+            const startSample = i * samplesPerRow
+            const endSample = startSample + samplesPerRow
+            signals.push({
+                data: src.data.subarray(startSample, endSample),
+                samplingRate: src.samplingRate,
+            })
+        }
+        return { start: range[0], end: range[1], signals }
+    }
 }
 
 export class GenericBiosignalHeader {
