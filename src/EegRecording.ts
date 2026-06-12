@@ -181,10 +181,19 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
                     const dataFieldsLen = BiosignalMutex.SIGNAL_DATA_POS
                     let fullSizeFloats = 0
                     let bytesPerSecond = 0
+                    // Derivation cache slots participate in the budget exactly like source channels.
+                    // `_derivationCacheSlots` was resolved when `_applyDefaultSetups` ran during
+                    // `prepare()`, so by the time the ACTIVATE handler reaches here the setup (with
+                    // its derivations) is already attached to `_setup`.
+                    const derivationSlots = this._derivationCacheSlots()
                     for (const chan of channels) {
                         fullSizeFloats += chan.sampleCount
                         // Annotation channels (samplingRate 0) carry no signal bytes.
                         bytesPerSecond += chan.samplingRate * 4
+                    }
+                    for (const slot of derivationSlots) {
+                        fullSizeFloats += slot.sampleCount
+                        bytesPerSecond += slot.samplingRate * 4
                     }
                     const useRolling = (fullSizeFloats * 4) > maxCacheBytes
                     // Adaptive block duration: 3 × blockDuration seconds of channel data must fit
@@ -204,6 +213,12 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
                             ? Math.min(chan.sampleCount, Math.ceil(3 * blockDuration * chan.samplingRate))
                             : chan.sampleCount
                         totalMem += channelSamples + dataFieldsLen
+                    }
+                    for (const slot of derivationSlots) {
+                        const slotSamples = useRolling
+                            ? Math.min(slot.sampleCount, Math.ceil(3 * blockDuration * slot.samplingRate))
+                            : slot.sampleCount
+                        totalMem += slotSamples + dataFieldsLen
                     }
                     // TODO: Remove once rolling window cache is finalized.
                     Log.info(
@@ -311,29 +326,10 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
                 // Set up the dedicated trend service, connecting it to the EDF SAB.
                 // Use the real worker when SAB is available, substitute otherwise.
                 await this._initTrendService()
-                // Add default setups and montages first as some of the extra montages may use them.
-                await this.addDefaultSetupsAndMontages()
-                // Add possible extra setups.
-                for (const setup of EegRecording.EXTRA_SETUPS) {
-                    this.addSetup(setup, this._channels)
-                    Log.debug(`Added extra setup '${setup.name}'.`, SCOPE)
-                }
-                // Add possible extra montages.
-                for (const [setup, extraMontages] of EegRecording.EXTRA_MONTAGES) {
-                    for (const montage of extraMontages) {
-                        if (
-                            this._setups.find(s => s.name === setup) &&
-                            await this.addMontage(
-                                `${setup}:${montage.name}`,
-                                montage.label,
-                                setup,
-                                montage
-                            )
-                        ) {
-                            Log.debug(`Added extra montage '${montage.label}' for setup '${setup}'.`, SCOPE)
-                        }
-                    }
-                }
+                // Default + extra setups are applied during `prepare()` (so derivations make it
+                // into the memory budget). Montages need the SAB to be in place, so they happen
+                // here, after setupMutex / setupCache.
+                await this._applyDefaultMontages()
                 // Initial setup complete.
                 Log.debug(`EEG recording initial setup complete.`, SCOPE)
                 this.dispatchEvent(EegRecording.EVENTS.INITIAL_SETUP, 'after')
@@ -376,7 +372,31 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
                     // (e.g. autoCompute=false and the user toggled the strip on late).
                     this._scheduleTrendSetup()
                 }, this.id)
-                await this.cacheSignals()
+                const cacheOk = await this.cacheSignals()
+                if (cacheOk === false) {
+                    // `cacheSignals` returns false when the worker's cache fill
+                    // returned early — typically because mutex setup left the
+                    // cache "not ready" (e.g. SAB allocation succeeded but a
+                    // downstream init step failed on a recording too large for
+                    // the configured budget). Surfacing the failure on the
+                    // resource lets the renderer fall out of its "Loading data"
+                    // wait instead of hanging on signalCacheStatus = [0, 0].
+                    // `announce` pipes the user-facing wording through the
+                    // viewer's callout system (10 s toast by template default);
+                    // the bare Log message stays terse for SIEM-style ingestion.
+                    Log.error(
+                        `Signal caching failed for ${this.name}.`,
+                        SCOPE,
+                        new Error(`Signal caching failed for ${this.name}.`),
+                        {
+                            announce:
+                                `Could not load "${this.name}" — the recording may be ` +
+                                `too large for the configured memory budget.`,
+                        },
+                    )
+                    this._errorReason = this._errorReason || 'Signal caching failed'
+                    this.state = 'error'
+                }
                 this.dispatchEvent(BiosignalResourceEvents.SIGNAL_CACHING_COMPLETE)
             }
         }, this.id)
@@ -896,25 +916,53 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
         this._setupTrend(trend, cachedEnd)
     }
 
-    async addDefaultSetupsAndMontages () {
+    /**
+     * Apply the deployment's default + extra setups to the recording. Runs from `prepare()` so
+     * the setups (and their `SetupDerivation` entries) are attached before the resource is
+     * activated and the SAB is sized — that lets the memory budgeter in the ACTIVATE handler
+     * count derivation slots alongside source channels.
+     *
+     * Idempotent: `addSetup` already short-circuits on a name collision, so a second call to
+     * `prepare()` is safe.
+     */
+    protected override async _applyDefaultSetups (): Promise<void> {
         if (!this._SETTINGS) {
             return
         }
-        // Calculate raw channel offset properties.
+        // Calculate raw channel offset properties. Setup-independent — runs even when default
+        // setups are disabled.
         calculateSignalOffsets(this._channels, Object.assign({ isRaw: true, layout: [] }, this._SETTINGS))
         if (this._SETTINGS.skipDefaultSetups || !this._SETTINGS.defaultSetups?.length) {
-            // Skip default setups if none are defined or if skipping is explicitly set in settings.
             return
         }
-        // Add default setups and montages.
         for (const name of this._SETTINGS.defaultSetups || []) {
             const template = EegRecording.DEFAULT_MONTAGES.get(name)?.setup
             if (!template) {
                 Log.error(`Default setup '${name}' not found.`, SCOPE)
                 continue
             }
-            const setup = this.addSetup(template, this._channels)
+            this.addSetup(template, this._channels)
             Log.debug(`Added default setup '${name}'.`, SCOPE)
+        }
+        for (const setup of EegRecording.EXTRA_SETUPS) {
+            this.addSetup(setup, this._channels)
+            Log.debug(`Added extra setup '${setup.name}'.`, SCOPE)
+        }
+    }
+
+    /**
+     * Apply default + extra montages to the recording. Runs from the ACTIVATE handler after the
+     * SAB is in place — `addMontage` needs the worker mutex to commission the montage processor.
+     */
+    protected async _applyDefaultMontages (): Promise<void> {
+        if (!this._SETTINGS || this._SETTINGS.skipDefaultSetups) {
+            return
+        }
+        for (const name of this._SETTINGS.defaultSetups || []) {
+            const setup = this._setups.find(s => s.name === name)
+            if (!setup) {
+                continue
+            }
             const montages = this._SETTINGS.defaultMontages?.[
                 setup.name as keyof EegModuleSettings['defaultMontages']
             ]
@@ -927,6 +975,21 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
                         this._recordMontage = newMontage
                         Log.debug(`Set recording montage to '${newMontage.name}'.`, SCOPE)
                     }
+                }
+            }
+        }
+        for (const [setup, extraMontages] of EegRecording.EXTRA_MONTAGES) {
+            for (const montage of extraMontages) {
+                if (
+                    this._setups.find(s => s.name === setup) &&
+                    await this.addMontage(
+                        `${setup}:${montage.name}`,
+                        montage.label,
+                        setup,
+                        montage
+                    )
+                ) {
+                    Log.debug(`Added extra montage '${montage.label}' for setup '${setup}'.`, SCOPE)
                 }
             }
         }
@@ -1082,6 +1145,13 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
             this.state = 'error'
             return false
         })
+        if (response) {
+            // Apply default + extra setups now, while the worker is ready but the resource is not
+            // yet active. The activation-time memory budgeter walks `_setup.derivations` (declared
+            // here) so derivation slots are sized into the SAB; if setup application waited until
+            // ACTIVATE, those derivations would arrive after the SAB is locked.
+            await this._applyDefaultSetups()
+        }
         // Load possible videos
         //if (study.meta.videos) {
         //    for (const { url, startTime, endTime, group, syncPoints } of study.meta.videos) {
