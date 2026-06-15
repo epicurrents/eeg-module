@@ -32,7 +32,7 @@
   "scripts": {
     "build": "npm run build:umd && npm run build:tsc",
     "build:docs": "npx typedoc",
-    "build:tsc": "tsc && tsconfig-replace-paths --project tsconfig.json && npm run copy:json",
+    "build:tsc": "tsc && tsconfig-replace-paths --project tsconfig.paths.json && npm run copy:json",
     "build:umd": "webpack --progress --config webpack.config.js",
     "copy:json": "node copy-json.js",
     "dev": "webpack serve --progress --config webpack.dev.js",
