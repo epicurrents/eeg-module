@@ -89,6 +89,13 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
     protected _formatHeader: object | null = null
     /** Header information for this record. */
     protected _headers: GenericBiosignalHeader
+    /**
+     * In-flight teardown started by deactivation, or `null` when no teardown is pending. The
+     * `isActive` setter flips the active flag synchronously and runs {@link unload} in the
+     * background; this holds that promise so {@link awaitDeactivation} can let a caller block on
+     * the real release completing.
+     */
+    protected _pendingDeactivation: Promise<void> | null = null
     /** Tracks whether signal caching has completed at least once for this recording. */
     protected _signalCachingComplete = false
     /**
@@ -468,8 +475,21 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
             this._isActive = value
             this.dispatchPropertyChangeEvent('isActive', value, prev, 'after')
             this.dispatchEvent(value ? AssetEvents.ACTIVATE : AssetEvents.DEACTIVATE, 'after')
-            this.unload().catch((e: unknown) => {
+            // The synchronous flip above lets the runtime iteration see the new active resource
+            // immediately, but the actual buffer release runs here in the background. Hold the
+            // promise so `awaitDeactivation` can block a following allocation (the resource switch
+            // under the memory manager) until this resource has finished releasing and rearranging
+            // the shared buffer — otherwise the next recording's caching races the rearrange and
+            // reads a moved/zeroed buffer region.
+            const deactivation = this.unload().catch((e: unknown) => {
                 Log.error(`Async unload failed: ${(e as Error)?.message ?? e}`, SCOPE)
+            })
+            this._pendingDeactivation = deactivation
+            deactivation.finally(() => {
+                // Only clear if a newer deactivation hasn't already replaced this one.
+                if (this._pendingDeactivation === deactivation) {
+                    this._pendingDeactivation = null
+                }
             })
         } else {
             // Default to base class implementation.
@@ -486,6 +506,10 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
     ///////////////////////////////////////////////////
     //                   METHODS                     //
     ///////////////////////////////////////////////////
+
+    async awaitDeactivation () {
+        await this._pendingDeactivation
+    }
 
     /**
      * Public entry point for callers that want to ensure the aEEG trend is set up — typically the
