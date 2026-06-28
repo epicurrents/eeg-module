@@ -1156,7 +1156,6 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
         ).then(async response => {
             if (response) {
                 this.totalDuration = response
-                this.state = 'ready'
                 return true
             }
             // There was an error when preparing the resource.
@@ -1175,6 +1174,22 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
             // here) so derivation slots are sized into the SAB; if setup application waited until
             // ACTIVATE, those derivations would arrive after the SAB is locked.
             await this._applyDefaultSetups()
+            // Flip to 'ready' only AFTER the setups are attached, so `state === 'ready'` (which makes
+            // the resource `isReady`) truthfully implies the setups are in `_setups` — the ACTIVATE
+            // handler's `_applyDefaultMontages` needs them, otherwise it silently adds zero montages
+            // (the per-setup `continue`).
+            this.state = 'ready'
+            // The loader starts prepare() without awaiting it, and `setActiveResource` flips
+            // `isActive` without checking `isReady`, so a recording can be activated *before* it is
+            // prepared. The ACTIVATE handler then skips its one-time setup (its `state === 'ready'`
+            // guard is false at that point) and nothing retriggers it — the recording opens with zero
+            // montages, no channel offsets and no cached data, recovering only on reopen (by which
+            // time `state === 'ready'`). Now that we are finally ready, re-dispatch ACTIVATE so the
+            // setup runs; the handler's own guards make this a no-op once the service is set up.
+            if (this._isActive && !this._service?.isReady) {
+                Log.debug(`Recording activated before ready; running deferred setup.`, SCOPE)
+                this.dispatchEvent(AssetEvents.ACTIVATE, 'after')
+            }
         }
         // Load possible videos
         //if (study.meta.videos) {
