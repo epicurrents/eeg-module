@@ -184,6 +184,77 @@ describe('EegRecording', () => {
             })
         })
 
+        // A montage added before the SAB exists (the interface `created` lifecycle hook
+        // adds settings-sourced extra montages — e.g. project setups like BrainStatus — at
+        // resource creation) is published by `addMontage` without a worker cache. The ACTIVATE
+        // handler must wire it once the mutex/cache is in place, or activating it errors with
+        // "signal cache has not been set up yet" (the project-viewer EEG regression).
+        describe('_wireMontageDataSources — wires montages added before the SAB existed', () => {
+            // The prototype spies below share EegMontage.prototype with the addMontage tests
+            // above; restore first so call counts don't leak in across tests.
+            beforeEach(() => {
+                vi.restoreAllMocks()
+            })
+            it('addMontage skips wiring with no mutex/cache, then activation commissions the montage', async () => {
+                const rec = new EegRecording('r', makeChannels(), makeHeader(), makeWorker())
+                ;(rec as any)._service = { bufferRangeStart: -1 }
+                ;(rec as any)._mutexProps = null
+                ;(rec as any)._cacheProps = null
+
+                const { EegMontage } = await import('../src/components')
+                const mutexSpy = vi.spyOn(EegMontage.prototype as any, 'setupServiceWithInputMutex')
+                    .mockResolvedValue(undefined as any)
+                const cacheSpy = vi.spyOn(EegMontage.prototype as any, 'setupServiceWithCache')
+                    .mockResolvedValue(undefined as any)
+                vi.spyOn(EegMontage.prototype as any, 'mapChannels').mockImplementation(() => {})
+                vi.spyOn(EegMontage.prototype as any, 'setInterruptions').mockImplementation(() => {})
+                // Avoid the real property-change dispatch (no event bus in this harness);
+                // the montage instance is taken from addMontage's return value instead.
+                vi.spyOn(rec as any, '_setPropertyValue').mockImplementation(() => {})
+
+                ;(rec as any)._setups = [{ name: 'setup1', channels: [] }]
+                const montage = await rec.addMontage('mtg', 'Montage', 'setup1' as any, {} as any)
+
+                // Published but unwired — there is no SAB to commission the worker against yet.
+                expect(montage).toBeTruthy()
+                expect(mutexSpy).not.toHaveBeenCalled()
+                expect(cacheSpy).not.toHaveBeenCalled()
+
+                // Activation makes the mutex available; wiring must commission the montage.
+                const mutexProps = { sentinel: true }
+                ;(rec as any)._mutexProps = mutexProps
+                await (rec as any)._wireMontageDataSources([montage])
+                expect(mutexSpy).toHaveBeenCalledTimes(1)
+                expect(mutexSpy).toHaveBeenCalledWith(mutexProps)
+            })
+
+            it('wires to the JS-heap cache when no mutex is present', async () => {
+                const rec = new EegRecording('r', makeChannels(), makeHeader(), makeWorker())
+                ;(rec as any)._service = { bufferRangeStart: -1 }
+                ;(rec as any)._mutexProps = null
+                ;(rec as any)._cacheProps = null
+
+                const { EegMontage } = await import('../src/components')
+                const mutexSpy = vi.spyOn(EegMontage.prototype as any, 'setupServiceWithInputMutex')
+                    .mockResolvedValue(undefined as any)
+                const cacheSpy = vi.spyOn(EegMontage.prototype as any, 'setupServiceWithCache')
+                    .mockResolvedValue(undefined as any)
+                vi.spyOn(EegMontage.prototype as any, 'mapChannels').mockImplementation(() => {})
+                vi.spyOn(EegMontage.prototype as any, 'setInterruptions').mockImplementation(() => {})
+                vi.spyOn(rec as any, '_setPropertyValue').mockImplementation(() => {})
+
+                ;(rec as any)._setups = [{ name: 'setup1', channels: [] }]
+                const montage = await rec.addMontage('mtg', 'Montage', 'setup1' as any, {} as any)
+
+                const cacheProps = { cache: true }
+                ;(rec as any)._cacheProps = cacheProps
+                await (rec as any)._wireMontageDataSources([montage])
+                expect(cacheSpy).toHaveBeenCalledTimes(1)
+                expect(cacheSpy).toHaveBeenCalledWith(cacheProps)
+                expect(mutexSpy).not.toHaveBeenCalled()
+            })
+        })
+
         describe('ACTIVATE handler — guards against re-running setup in the before phase', () => {
             it('exits early without invoking the setup body when _isActive is false', async () => {
                 // Capture the ACTIVATE handler registered in the constructor by

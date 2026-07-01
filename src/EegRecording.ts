@@ -19,6 +19,7 @@ import type {
     BiosignalAnnotationEvent,
     BiosignalChannel,
     BiosignalConfig,
+    BiosignalMontage,
     BiosignalMontageTemplate,
     BiosignalSetup,
     BiosignalTrendType,
@@ -336,7 +337,21 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
                 // Default + extra setups are applied during `prepare()` (so derivations make it
                 // into the memory budget). Montages need the SAB to be in place, so they happen
                 // here, after setupMutex / setupCache.
+                //
+                // Montages added before the SAB existed were published without a worker cache:
+                // the interface `created` lifecycle hook adds settings-sourced extra montages
+                // (project setups such as BrainStatus) at resource creation, when `addMontage`
+                // cannot commission the montage processor because no mutex/cache is available
+                // yet. Snapshot them before applying defaults so we can wire exactly those below
+                // — the montages `_applyDefaultMontages` adds are already wired by `addMontage`.
+                const montagesAddedBeforeSetup = [...this.montages]
                 await this._applyDefaultMontages()
+                // Wire the pre-setup montages now that the mutex / cache is in place. This also
+                // covers the case where `_applyDefaultMontages` returns early (skipDefaultSetups),
+                // which is the project-viewer path where every montage comes from the `created`
+                // hook — without this, activating one errors with "signal cache has not been set
+                // up yet" because its worker-side processor was never commissioned.
+                await this._wireMontageDataSources(montagesAddedBeforeSetup)
                 // Initial setup complete.
                 Log.debug(`EEG recording initial setup complete.`, SCOPE)
                 this.dispatchEvent(EegRecording.EVENTS.INITIAL_SETUP, 'after')
@@ -1019,6 +1034,23 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
         }
     }
 
+    /**
+     * Wire each of the given montages' worker-side processors to the currently active signal
+     * source — the SAB mutex when present, otherwise the JS-heap cache. Called from the ACTIVATE
+     * handler for montages that were added before the SAB existed (e.g. via the interface
+     * `created` lifecycle hook), which `addMontage` therefore published without a cache. A montage
+     * is left untouched when neither a mutex nor a cache is available.
+     */
+    protected async _wireMontageDataSources (montages: BiosignalMontage[]): Promise<void> {
+        for (const montage of montages) {
+            if (this._mutexProps) {
+                await montage.setupServiceWithInputMutex(this._mutexProps)
+            } else if (this._cacheProps) {
+                await montage.setupServiceWithCache(this._cacheProps)
+            }
+        }
+    }
+
     addEventsFromTemplates (_context: PropertyChangeContext | null, ...templates: AnnotationEventTemplate[]) {
         const events = [] as EegEvent[]
         for (const tpl of templates) {
@@ -1077,6 +1109,9 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
             // set up yet", and the UI never paints. Awaiting setup here
             // serialises the commission round-trip and lets listeners see a
             // ready montage.
+            // When neither is set the montage is being added before activation (e.g. the
+            // interface `created` hook) — there is no SAB to wire yet. The ACTIVATE handler
+            // wires such montages once the mutex/cache exists; see `montagesAddedBeforeSetup`.
             if (this._mutexProps) {
                 await montage.setupServiceWithInputMutex(this._mutexProps)
             } else if (this._cacheProps) {
