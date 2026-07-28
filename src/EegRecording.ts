@@ -174,6 +174,16 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
                 Log.error(`Forwarding buffer move to the trend worker failed: ${(e as Error)?.message ?? e}.`, SCOPE)
             })
         }, this.id)
+        // A memory-manager eviction (`freeBy` → `service.unload()`) tears the cache down without
+        // passing through this resource's own release chain, so the service's not-ready dispatch
+        // is the resource's only notification. Zero the cache status on it — resource state must
+        // never claim data the SAB no longer holds; reactivation re-establishes everything from
+        // the ACTIVATE flow, which re-runs full setup when the service is not ready.
+        this._service.onPropertyChange('isReady', (newValue) => {
+            if (!newValue) {
+                this.signalCacheStatus = [0, 0]
+            }
+        }, this.id)
         this._startTime = header.recordingStartTime
         this._dataDuration = header.dataUnitCount*header.dataUnitDuration
         this._totalDuration = this._dataDuration
