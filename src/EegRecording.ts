@@ -350,6 +350,13 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
                     // (e.g. autoCompute=false and the user toggled the strip on late).
                     this._scheduleTrendSetup()
                 }, this.id)
+                if (this._trustedInterruptions) {
+                    // Deliver the complete trusted interruption table to the reader now that
+                    // study setup is done (the EDF duration probe during setup clears the
+                    // discovered table). Marks the table complete, lifting the explored-span
+                    // navigation restriction before the first cache seed.
+                    await this._service?.setInterruptions(this._trustedInterruptions, true)
+                }
                 const cacheOk = await this.cacheSignals()
                 if (cacheOk === false) {
                     // `cacheSignals` returns false when the worker's cache fill
