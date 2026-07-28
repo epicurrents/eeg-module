@@ -205,7 +205,10 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
                     const appSettings = window.__EPICURRENTS__?.RUNTIME?.SETTINGS.app
                     const maxCacheBytes = appSettings?.maxLoadCacheSize ?? 0
                     const blockDurationCap = appSettings?.dataBlockDuration ?? 3600
-                    let totalMem = 4 // For lock field.
+                    // Lock cell (1) + mutex meta fields (5: allocated, start, end,
+                    // data_unit_duration, window_epoch). Must track the meta-field set in
+                    // BiosignalMutex.
+                    let totalMem = 6
                     const dataFieldsLen = BiosignalMutex.SIGNAL_DATA_POS
                     let fullSizeFloats = 0
                     let bytesPerSecond = 0
