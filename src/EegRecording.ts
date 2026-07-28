@@ -154,6 +154,26 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
         }
         // Service is set here and should only become null if the resource is destroyed.
         this._service = new EegService(this, fileWorker, this._memoryManager || undefined)
+        // Forward reader-buffer moves to the trend worker. The trend worker's input views couple
+        // directly to the reader's SAB region, but the trend service holds no managed allocation,
+        // so a memory-manager rearrange cannot reach it through the managed-services loop — the
+        // reader service announces its own move and the recording forwards it here.
+        this._service.onPropertyChange('bufferRange', (newValue, oldValue) => {
+            const newRange = newValue as number[] | null
+            const oldRange = oldValue as number[] | null
+            if (!this._trendService || !newRange || !oldRange) {
+                return
+            }
+            const delta = newRange[0] - oldRange[0]
+            if (!delta) {
+                return
+            }
+            this._trendService.shiftInputPositions([
+                { start: oldRange[0], end: oldRange[1], delta },
+            ]).catch((e: unknown) => {
+                Log.error(`Forwarding buffer move to the trend worker failed: ${(e as Error)?.message ?? e}.`, SCOPE)
+            })
+        }, this.id)
         this._startTime = header.recordingStartTime
         this._dataDuration = header.dataUnitCount*header.dataUnitDuration
         this._totalDuration = this._dataDuration
