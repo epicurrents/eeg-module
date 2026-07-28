@@ -319,6 +319,16 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
                             }
                         }
                         this.onPropertyChange('viewStart', () => {
+                            // Montage mode only: with raw signals the plot drives the window
+                            // through the view-anchored request protocol, and a second mover here
+                            // would supersede the plot's in-flight requests and thrash the window
+                            // between two targets (the prefetch-adjusted block vs. the view block).
+                            // The montage read path still polls the reader's window, so until it
+                            // moves onto the request protocol this listener is what slides the
+                            // window under it.
+                            if (!this._activeMontage) {
+                                return
+                            }
                             // Compute the "effective" block as if the view were `lookahead` seconds
                             // ahead of its actual position. This pulls the slide trigger forward by
                             // half a block so the new edge block starts downloading while the user
