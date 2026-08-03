@@ -46,7 +46,7 @@ import {
     EegTrend,
     EegVideo,
 } from './components'
-import type { EegModuleSettings, EegResource } from './types'
+import type { EegModuleSettings, EegResource, TrendDerivation } from './types'
 import Log from 'scoped-event-log'
 
 const SCOPE = "EegRecording"
@@ -561,6 +561,14 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
         if (this._trendSetupScheduled) {
             return
         }
+        if (!this._trendsEnabled.size && !this._SETTINGS?.aeeg?.autoCompute) {
+            // No type has been requested and none auto-computes, so all builders would exit on
+            // their own guard. Cache progress calls this on every update, so returning here keeps
+            // a closed trend strip from scheduling a microtask per update for the whole load.
+            // `ensureTrendSetup` registers the type before scheduling, so opening the strip still
+            // gets through.
+            return
+        }
         this._trendSetupScheduled = true
         queueMicrotask(() => {
             this._trendSetupScheduled = false
@@ -715,6 +723,15 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
     }
 
     /**
+     * Resolve the derivation list a trend type should build against. A type that declares none of
+     * its own reuses the aEEG list, which is the common case — the trends conventionally describe
+     * the same hemispheres, and only a deployment that wants them to differ has to say so.
+     */
+    protected _trendDerivations (own?: TrendDerivation[]): TrendDerivation[] {
+        return own?.length ? own : (this._SETTINGS?.aeeg?.derivations ?? [])
+    }
+
+    /**
      * Create and register `EegAmplitudeIntegratedTrend` objects for each entry in
      * `settings.aeeg.derivations` that can be resolved against the recording setup.
      * Computation starts immediately up to the currently cached signal end and is
@@ -764,24 +781,18 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
 
     /**
      * Create and register `EegSpectrogramTrend` objects for each entry in
-     * `settings.aeeg.derivations` (reuses the same L/R derivation candidates).
+     * `settings.spectrogram.derivations` (falling back to the aEEG derivations).
      * Follows the same progressive-caching pattern as `_buildAmplitudeTrends`.
      */
     protected _buildSpectrogramTrends () {
         const settings = this._SETTINGS
         const existingSpec = [...this._trends.values()].filter(t => t.derivation.type === 'spectrogram').map(t => t.name)
-        Log.debug(`[trend] _buildSpectrogramTrends called — trendsEnabled=[${[...this._trendsEnabled]}] existing=[${existingSpec}] setup=${!!this._setup} trendService=${!!this._trendService} cachedEnd=${this._signalCacheStatus[1]}s`, SCOPE)
-        if (!settings?.aeeg || !this._setup) {
-            Log.debug(`[trend] _buildSpectrogramTrends early-exit: no aeeg settings or no setup`, SCOPE)
+        const derivations = this._trendDerivations(settings?.spectrogram?.derivations)
+        if (!derivations.length || !this._setup) {
             return
         }
-        if (!this._trendsEnabled.has('spectrogram')) {
-            Log.debug(`[trend] _buildSpectrogramTrends early-exit: 'spectrogram' not in trendsEnabled`, SCOPE)
+        if (!this._trendsEnabled.has('spectrogram') || existingSpec.length > 0) {
             return
-        }
-        if (existingSpec.length > 0) {
-            Log.debug(`[trend] _buildSpectrogramTrends early-exit: already built [${existingSpec}]`, SCOPE)
-            return  // already built
         }
         const specCfg  = (settings.trends as Record<string, unknown> & { spectrogram?: { epochLength?: number, maxFreqHz?: number, averageReference?: boolean } })?.spectrogram
         const epochLength = specCfg?.epochLength ?? 1
@@ -804,7 +815,7 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
         const frequencyBins = maxFreqHz
         const averageReference = specCfg?.averageReference ?? false
         const service = this._trendService
-        for (const entry of settings.aeeg.derivations) {
+        for (const entry of derivations) {
             const trend = new EegSpectrogramTrend(
                 `spectrogram-${entry.id}`,
                 entry.label,
@@ -822,13 +833,13 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
 
     /**
      * Create and register `EegFrequencyRatioTrend` objects for each entry in
-     * `settings.aeeg.derivations` (one trend per hemisphere using the same L/R
-     * derivation candidates as aEEG). Follows the same progressive-caching pattern
-     * as the other build hooks.
+     * `settings.ratio.derivations` (falling back to the aEEG derivations). Follows the same
+     * progressive-caching pattern as the other build hooks.
      */
     protected _buildRatioTrends () {
         const settings = this._SETTINGS
-        if (!settings?.aeeg || !this._setup) {
+        const derivations = this._trendDerivations(settings?.ratio?.derivations)
+        if (!derivations.length || !this._setup) {
             return
         }
         if (!this._trendsEnabled.has('ratio')) {
@@ -861,7 +872,7 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
             return
         }
         const service = this._trendService
-        for (const entry of settings.aeeg.derivations) {
+        for (const entry of derivations) {
             const trend = new EegFrequencyRatioTrend(
                 `ratio-${entry.id}`,
                 entry.label,

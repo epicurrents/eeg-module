@@ -91,8 +91,9 @@ export type EegStudyProperties = BiosignalStudyProperties & {
     videos?: VideoAttachment[]
 }
 
-import { type EegModuleSettings } from './config'
+import { type EegModuleSettings, type TrendDerivation } from './config'
 
 export {
     EegModuleSettings,
+    TrendDerivation,
 }

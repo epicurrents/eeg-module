@@ -49,13 +49,21 @@ export type EegModuleSettings = BaseModuleSettings & CommonBiosignalSettings & {
      * unwanted clutter to the montage list.
      */
     skipDefaultSetups?: boolean
-    /** Power spectrogram trend settings. */
+    /**
+     * Frequency-ratio trend setup. Carries only the derivation list; the math knobs (epoch length,
+     * numerator / denominator bands, referencing) live in {@link trends.ratio}. Omit `derivations`
+     * to reuse {@link aeeg}'s, which is the common case — the two trends conventionally describe
+     * the same hemispheres.
+     */
+    ratio?: {
+        derivations?: TrendDerivation[]
+    }
+    /**
+     * Power spectrogram trend setup. Same split as {@link ratio}: derivations here, math knobs in
+     * {@link trends.spectrogram}, and an omitted `derivations` reuses {@link aeeg}'s.
+     */
     spectrogram?: {
-        epochLength: number
-        maxFreqHz:   number
-        mode: 'power' | 'proportion'
-        /** Use Common Average Reference instead of the configured reference channel. */
-        averageReference: boolean
+        derivations?: TrendDerivation[]
     }
     /**
      * pdBSI (pairwise derived Brain Symmetry Index) setup. Carries the homologous L/R
@@ -88,23 +96,10 @@ export type EegModuleSettings = BaseModuleSettings & CommonBiosignalSettings & {
         /**
          * One entry per trend slot. The standard NICU aEEG layout is two homologous trends —
          * one for each hemisphere — so the user can compare left vs. right side activity.
-         * Each entry carries its own label, color, and fallback candidate list.
+         * Doubles as the fallback for {@link ratio} and {@link spectrogram} when those declare no
+         * derivations of their own.
          */
-        derivations: {
-            /** Stable identifier used as the trend name suffix (e.g. `'left'` → `'aeeg-left'`). */
-            id: string
-            /** Display label shown in the trend strip's left-side legend. */
-            label: string
-            /** Color of this trend's filled band. */
-            color: SettingsColor
-            /**
-             * Candidate derivations in priority order. The resolver tries each in turn and stops
-             * at the first one whose electrodes can be found in the active montage. Each entry
-             * is `{ source, reference }` — see {@link resolveAeegDerivation} for the matching
-             * rules (direct bipolar channel name, then individual electrode names).
-             */
-            candidates: { source: string, reference: string }[]
-        }[]
+        derivations: TrendDerivation[]
         /**
          * Layout for multiple aEEG bands in the trend strip.
          *  - `'separate'`: each band gets its own vertical slot (left on top, right below).
@@ -120,4 +115,26 @@ export type EegModuleSettings = BaseModuleSettings & CommonBiosignalSettings & {
         /** Whether the band is currently shown. Setting false hides the band without disposing the trend. */
         visible: boolean
     }
+}
+
+/**
+ * One slot in a per-hemisphere (or otherwise grouped) trend: a labelled derivation plus the
+ * candidates used to resolve it against a recording's setup. Shared by the aEEG, frequency-ratio
+ * and spectrogram trends, each of which creates one trend per entry.
+ */
+export type TrendDerivation = {
+    /** Stable identifier used as the trend name suffix (e.g. `'left'` → `'aeeg-left'`). */
+    id: string
+    /** Display label shown in the trend strip's left-side legend. */
+    label: string
+    /** Color of this trend's filled band. */
+    color: SettingsColor
+    /**
+     * Candidate derivations in priority order. The resolver tries each in turn and stops at the
+     * first one whose electrodes can be found in the active montage. Each entry is
+     * `{ source, reference }` — see {@link resolveAeegDerivation} for the matching rules (an empty
+     * reference matches the source channel alone, then a direct bipolar channel name, then the two
+     * electrode names individually).
+     */
+    candidates: { source: string, reference: string }[]
 }
