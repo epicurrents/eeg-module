@@ -132,12 +132,12 @@ export default class EegStudyLoader extends BiosignalStudyLoader {
         return recording
     }
 
-    public async loadFromUrl (
-        fileUrl: string,
-        config?: ConfigStudyLoader,
-        preStudy?: StudyContext | undefined
-    ): Promise<StudyContext | null> {
-        const study = await super.loadFromUrl(fileUrl, config, preStudy)
+    /**
+     * Claim a loaded `study` for the EEG modality. The format importers are modality-agnostic and
+     * stamp their data file as a generic `signal`; every EEG loading path has to narrow that, or
+     * services looking up their data file by modality find nothing.
+     */
+    protected _claimAsEeg (study: StudyContext | null): StudyContext | null {
         if (!study) {
             return null
         }
@@ -146,5 +146,21 @@ export default class EegStudyLoader extends BiosignalStudyLoader {
             study.files[0].modality = `eeg`
         }
         return study
+    }
+
+    public async loadFromFile (
+        file: File,
+        config?: ConfigStudyLoader,
+        preStudy?: StudyContext | undefined
+    ): Promise<StudyContext | null> {
+        return this._claimAsEeg(await super.loadFromFile(file, config, preStudy))
+    }
+
+    public async loadFromUrl (
+        fileUrl: string,
+        config?: ConfigStudyLoader,
+        preStudy?: StudyContext | undefined
+    ): Promise<StudyContext | null> {
+        return this._claimAsEeg(await super.loadFromUrl(fileUrl, config, preStudy))
     }
 }
