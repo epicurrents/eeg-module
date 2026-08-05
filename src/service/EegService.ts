@@ -57,9 +57,13 @@ export default class EegService extends GenericBiosignalService implements Biosi
         formatHeader?: unknown
     ) {
         // Find the data file; there should only be one.
-        const fileUrl = study.files.filter(
-            f => f.modality === 'eeg' && f.role === 'data'
-        ).map(file => file.url)[0]
+        const dataFile = study.files.filter(f => f.modality === 'eeg' && f.role === 'data')[0]
+        const fileUrl = dataFile?.url
+        // A study opened from the local file system carries the File itself alongside the object URL
+        // that was minted for it. Hand the File to the worker so part reads slice it directly: the
+        // URL is a `blob:` reference to the very same bytes, and reading it back through the fetch
+        // stack copies every requested range for nothing.
+        const sourceFile = dataFile?.file || null
         // Snapshot the main thread's app settings so the worker starts with the same configured
         // values rather than the bundled defaults. The worker's `_buildDataBlocks` decides
         // `_useRolling` from `maxLoadCacheSize` and `dataBlockDuration`; if those don't match the
@@ -80,6 +84,7 @@ export default class EegService extends GenericBiosignalService implements Biosi
                 new Map<string, unknown>([
                     ['header', header.serializable],
                     ['url', fileUrl],
+                    ['file', sourceFile],
                     ['authHeader', options?.authHeader || null],
                     ['formatHeader', formatHeader || null],
                     ['settingsApp', settingsApp],
