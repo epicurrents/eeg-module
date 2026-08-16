@@ -24,8 +24,14 @@ export type DivergingRamp = {
     /**
      * Saturation curve exponent, 0.3 (vivid) to 1 (linear).
      *
-     * A field is dominated by values well below its peak, so a linear ramp renders most of the scalp near-neutral and
-     * reads as washed out. Values below 1 push the mid range towards the poles without altering the underlying data.
+     * At 1 the colour is proportional to the voltage. Below 1 the mid range is pushed towards the poles, which makes
+     * low-amplitude structure visible — a diffuse asymmetry, a background gradient, the weak counterpart of a
+     * dipole — where a linear ramp leaves most of the scalp near-neutral.
+     *
+     * The cost falls exactly on focality. A focal discharge really is near zero away from its maximum, so exaggerating
+     * the mid range inflates its apparent spatial extent and blurs where it is. Reading spikes on clinical recordings
+     * is clearer at 1, which is what the interface ships; the lower values serve the diffuse case. Neither alters the
+     * underlying values, only how they are coloured.
      */
     gamma: number
 }
