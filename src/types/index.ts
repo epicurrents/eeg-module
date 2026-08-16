@@ -92,8 +92,28 @@ export type EegStudyProperties = BiosignalStudyProperties & {
 }
 
 import { type EegModuleSettings, type TrendDerivation } from './config'
+import type {
+    DivergingRamp,
+    EegSurfaceFieldMapInterface,
+    EegTopogramInterface,
+    EncodedFieldMap,
+    FieldMapChannelMatch,
+    Isoline2D,
+    Isoline3D,
+    Point3D,
+    Rgb,
+} from './topography'
 
 export {
+    DivergingRamp,
     EegModuleSettings,
+    EegSurfaceFieldMapInterface,
+    EegTopogramInterface,
+    EncodedFieldMap,
+    FieldMapChannelMatch,
+    Isoline2D,
+    Isoline3D,
+    Point3D,
+    Rgb,
     TrendDerivation,
 }
