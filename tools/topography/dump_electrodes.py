@@ -51,6 +51,13 @@ def main():
 
     out = {
         "montage": args.montage,
+        # See the package NOTICE; provenance stays with the data rather than only beside it.
+        "attribution": {
+            "generatedBy": "tools/topography/dump_electrodes.py",
+            "positions": ("standard_1005 montage from MNE-Python (BSD-3-Clause), "
+                          "https://github.com/mne-tools/mne-python"),
+            "notice": "See NOTICE in the root of @epicurrents/eeg-module.",
+        },
         "space": "head",
         "unit": "m",
         "positions": positions,

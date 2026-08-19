@@ -199,6 +199,19 @@ def main():
 
     meta = {
         "version": ASSET_VERSION,
+        # Provenance travels inside the asset, because the asset is the thing that gets copied around and the mesh
+        # in it carries licence conditions of its own. See the package NOTICE.
+        "attribution": {
+            "generatedBy": "tools/topography/bake_fieldmap.py",
+            # The mesh is trimmed and given an occlusion term above, so it is a *modified* version of the
+            # FreeSurfer surface, and its licence requires modified versions to say so.
+            "mesh": ("modified fsaverage scalp surface (FreeSurfer Software License), via the mne package: "
+                     f"trimmed to vertices with z >= {args.trim_z} m in head coordinates and given a per-vertex "
+                     "ambient occlusion term the original does not carry, so this is not the original surface; "
+                     "see https://surfer.nmr.mgh.harvard.edu/fswiki/FreeSurferSoftwareLicense"),
+            "mapping": "computed with MNE-Python (BSD-3-Clause), https://github.com/mne-tools/mne-python",
+            "notice": "See NOTICE in the root of @epicurrents/eeg-module.",
+        },
         "channels": channels,
         "montage": args.montage,
         "mode": args.mode,

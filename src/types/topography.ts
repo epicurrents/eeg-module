@@ -57,6 +57,14 @@ export type Isoline3D = { level: number, points: Float32Array }
 export type EncodedFieldMap = {
     /** Layout version; a decoder rejects anything it does not recognise. */
     version: number
+    /**
+     * Where the asset's data came from and under what terms, carried inside the file rather than only beside it.
+     *
+     * The mesh derives from material with licence conditions of its own, and an asset is the thing that gets copied
+     * out of a repository, so the provenance has to travel with it. Written by the generator; see the package NOTICE.
+     * Not read at runtime, and not covered by `version` — it describes the payload rather than its binary layout.
+     */
+    attribution?: Record<string, string>
     /** Channel names, in the order the mapping matrix expects them. */
     channels: string[]
     /** Name of the montage the map was baked for. */

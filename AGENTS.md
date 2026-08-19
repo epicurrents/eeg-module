@@ -185,6 +185,8 @@ These are shared between the two views and between this package and its consumer
 
 `src/config/topography/` holds generated JSON — an electrode position table and one baked field map per channel set. **Generated, not hand-edited**: `tools/topography/` regenerates and verifies them, and its README covers baking a map for a new channel set. Numeric arrays are base64 of packed binary in a fixed layout that the writer and the reader hold independently, versioned so the two cannot silently drift.
 
+The assets are third-party material, not ours: the mapping matrices come from MNE-Python (BSD-3-Clause) and the mesh derives from the FreeSurfer fsaverage subject, under a licence that is not OSI-approved and that requires its text accompany copies. `NOTICE` and `licenses/` in the package root hold the terms, `package.json#files` ships them, and each generated file repeats its own provenance in an `attribution` field. Anything that redistributes the built output carries the mesh and these conditions with it.
+
 A field map serves exactly the channel set it was baked for — the mapping matrix is a pseudo-inverse over the whole set, so columns cannot be dropped to serve a subset. `EegSurfaceFieldMap.forLabels` picks the map with the most channels a recording can feed, matching by resolved position rather than by name so that alternative nomenclature resolves. Adding a map means baking it and adding it to `BAKED`; the order of that list carries no meaning.
 
 ### Consuming this from another package

@@ -1,0 +1,61 @@
+NOTICE — @epicurrents/eeg-module
+
+This package is licensed under Apache-2.0; see LICENSE. It additionally contains and derives from third-party
+material, listed below with the terms that apply to it. Full licence texts are in `licenses/`.
+
+--------------------------------------------------------------------------------------------------------------
+MNE-Python — BSD-3-Clause
+Copyright 2011-2025 MNE-Python authors
+https://github.com/mne-tools/mne-python
+Full text: licenses/LICENSE.mne-python.txt
+
+`src/topography/` reimplements in TypeScript the scalp field interpolation MNE-Python performs in
+`mne.channels.interpolation._make_interpolation_matrix` and `mne.forward._field_interpolation._make_surface_mapping`.
+The generated assets under `src/config/topography/` are produced by calling MNE-Python from `tools/topography/`, and
+the electrode position table is derived from the `standard_1005` montage distributed with it.
+
+--------------------------------------------------------------------------------------------------------------
+FreeSurfer (fsaverage) — FreeSurfer Software License, which is not an OSI-approved open-source licence
+Copyright The General Hospital Corporation d/b/a Massachusetts General Hospital
+https://surfer.nmr.mgh.harvard.edu/fswiki/FreeSurferSoftwareLicense
+Full text: licenses/LICENSE.freesurfer.txt
+
+All or portions of this licensed product (such portions are the "Software") have been obtained under license from
+The General Hospital Corporation and are subject to the following terms and conditions:
+
+The scalp surface mesh embedded in the baked field maps under `src/config/topography/` — vertex positions, normals,
+triangles and ambient occlusion — derives from the head surface of the fsaverage average subject,
+`fsaverage-head.fif`, which is distributed inside the mne package and originates with FreeSurfer.
+
+That mesh is a modified version of the original FreeSurfer surface, and is marked as such here so it is not
+mistaken for the original: vertices below z = -0.06 m in MNE head coordinates are dropped and the triangles
+re-indexed onto what remains, and a per-vertex ambient occlusion term that the original does not carry is computed
+and stored with it. `tools/topography/bake_fieldmap.py` is what performs both modifications.
+
+The FreeSurfer licence grants a royalty-free, non-exclusive right to use, reproduce, make derivative works of and
+distribute the material, on the conditions that its licence text accompanies copies, that attributions and
+copyright notices are preserved, and that modified versions are identified as modified. It also states that
+clinical applications are neither recommended nor advised. That is a disclaimer by its authors rather than a
+restriction, and it applies to the anatomical surface this package uses for display; it says nothing about the
+signal processing around it.
+
+Anything that redistributes this package's built output — an assembled application edition, for instance — carries
+the same mesh and so carries these conditions with it.
+
+--------------------------------------------------------------------------------------------------------------
+Methods
+
+The implementations follow published methods. These are cited for academic attribution; no code was taken from the
+publications themselves.
+
+  Perrin, F., Pernier, J., Bertrand, O., & Echallier, J. F. (1989). Spherical splines for scalp potential and
+  current density mapping. Electroencephalography and Clinical Neurophysiology, 72(2), 184-187.
+
+  Oostenveld, R., & Praamstra, P. (2001). The five percent electrode system for high-resolution EEG and ERP
+  measurements. Clinical Neurophysiology, 112(4), 713-719.
+
+  Seeck, M., Koessler, L., Bast, T., Leijten, F., Michel, C., Baumgartner, C., He, B., & Beniczky, S. (2017).
+  The standardized EEG electrode array of the IFCN. Clinical Neurophysiology, 128(10), 2070-2077.
+
+  Möller, T., & Trumbore, B. (1997). Fast, minimum storage ray-triangle intersection. Journal of Graphics Tools,
+  2(1), 21-28.

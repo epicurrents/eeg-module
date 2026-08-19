@@ -2,6 +2,8 @@
 
 Offline tooling for the scalp topography sources in `src/topography/`. Nothing here runs in the browser or in the package build — it regenerates the two JSON assets under `src/config/topography/`, which are then imported like any other config file and copied to `dist/` by `copy-json.js`.
 
+The assets these produce carry third-party material and are covered by the package `NOTICE`: the mapping matrices are computed with MNE-Python (BSD-3-Clause), and the scalp mesh is a modified version of the FreeSurfer fsaverage head surface — trimmed at `--trim-z` and carrying an ambient occlusion term the original does not — whose licence requires that its text accompany copies and that modifications like those be identified as such. Each generated file repeats its own provenance in an `attribution` field, so it stays attributable once copied out of the repository.
+
 MNE is needed only here. At runtime the 2D topogram evaluates a spherical spline it builds itself, and the 3D field map evaluates `field = mapping @ data` against a matrix baked below, so neither needs Pyodide, numpy or MNE.
 
 ```sh
