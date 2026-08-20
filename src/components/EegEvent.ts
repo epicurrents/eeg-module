@@ -924,7 +924,7 @@ export default class EegEvent extends GenericBiosignalEvent implements EegResour
      */
     public static fromTemplate (tpl: AnnotationEventTemplate) {
         return new EegEvent(
-            tpl.start, tpl.duration, tpl.label || '',
+            tpl.start, tpl.duration, GenericBiosignalEvent.labelFromTemplate(tpl),
             {
                 annotator: tpl.annotator || undefined,
                 background: tpl.background || undefined,
