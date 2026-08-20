@@ -1,7 +1,7 @@
 {
     "name": "default:10-20",
-    "label": "Default 10-20",
-    "description": ["A generic setup for parsing 10-20 electrode configuration records"],
+    "label": "Default IFCN 25",
+    "description": ["A generic setup for parsing records against the IFCN 25-electrode array: the 19 electrodes of the 10-20 system plus the inferior chain F9/F10, T9/T10 and P9/P10", "Electrodes a recording does not carry go unmatched, so the same setup serves a plain 10-20 record and an extended one"],
     "channels":  [
         { "name": "fp1", "pattern": "(.*?)fp1(.*)", "label": "Fp1", "modality": "eeg", "averaged": false, "laterality": "s", "unit": "uV" },
         { "name": "fp2", "pattern": "(.*?)fp2(.*)", "label": "Fp2", "modality": "eeg", "averaged": false, "laterality": "d", "unit": "uV" },
@@ -22,6 +22,12 @@
         { "name": "fz", "pattern": "(.*?)fz(.*)", "label": "Fz", "modality": "eeg", "averaged": false, "laterality": "z", "unit": "uV" },
         { "name": "cz", "pattern": "(.*?)cz(.*)", "label": "Cz", "modality": "eeg", "averaged": false, "laterality": "z", "unit": "uV" },
         { "name": "pz", "pattern": "(.*?)pz(.*)", "label": "Pz", "modality": "eeg", "averaged": false, "laterality": "z", "unit": "uV" },
+        { "name": "f9", "pattern": "(.*?)f9(.*)", "label": "F9", "modality": "eeg", "averaged": false, "laterality": "s", "unit": "uV" },
+        { "name": "f10", "pattern": "(.*?)f10(.*)", "label": "F10", "modality": "eeg", "averaged": false, "laterality": "d", "unit": "uV" },
+        { "name": "t9", "pattern": "(.*?)t9(.*)", "label": "T9", "modality": "eeg", "averaged": false, "laterality": "s", "unit": "uV" },
+        { "name": "t10", "pattern": "(.*?)t10(.*)", "label": "T10", "modality": "eeg", "averaged": false, "laterality": "d", "unit": "uV" },
+        { "name": "p9", "pattern": "(.*?)p9(.*)", "label": "P9", "modality": "eeg", "averaged": false, "laterality": "s", "unit": "uV" },
+        { "name": "p10", "pattern": "(.*?)p10(.*)", "label": "P10", "modality": "eeg", "averaged": false, "laterality": "d", "unit": "uV" },
         { "name": "eog", "pattern": "(.*?)eog(.*)", "label": "EOG", "modality": "eog", "averaged": false, "unit": "uV" },
         { "name": "loc", "pattern": "(.*?)loc(.*)", "label": "LOC", "modality": "eog", "averaged": false, "unit": "uV" },
         { "name": "roc", "pattern": "(.*?)roc(.*)", "label": "ROC", "modality": "eog", "averaged": false, "unit": "uV" },

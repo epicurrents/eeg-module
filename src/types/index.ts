@@ -78,6 +78,23 @@ export interface EegResource extends BiosignalResource {
      */
     addSetup (config?: ConfigBiosignalSetup, channels?: BiosignalChannel[]): BiosignalSetup
     /**
+     * Prepare the resource for display without activating it, so that switching to it later is
+     * immediate: allocate its buffer, build its montages and fill its signal cache.
+     *
+     * Activation does this by itself, and only once, so calling this is never required — it moves
+     * the cost earlier, to a moment where the user is looking at something else. That is what makes
+     * a queued-review workflow feel instant: prepare the next recording while the reviewer is still
+     * reading the current one, and the switch costs nothing but a redraw.
+     *
+     * Safe to call more than once and safe to call on a recording that is later activated normally;
+     * the second call finds the work done and returns. The resource must have been prepared (be in
+     * the `ready` state) first — preloading an unprepared recording is a no-op and logs a warning.
+     *
+     * @returns Promise that resolves with true when the recording is ready to display, false when
+     *          it was not prepared or the setup failed.
+     */
+    preload (): Promise<boolean>
+    /**
      * Prepare the worker for processing signals.
      * @returns Promise that resolves with true if the worker was prepared successfully.
      */

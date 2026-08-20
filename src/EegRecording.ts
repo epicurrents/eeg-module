@@ -196,204 +196,7 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
             if (!this._isActive) {
                 return
             }
-            // Complete loader setup if not already done. Note: no defensive
-            // `signalCacheStatus = [0, 0]` reset here — `releaseSignalArrays` (Level 1 of
-            // the cache lifecycle, called via `releaseBuffers` on close) drains all
-            // in-flight `_readAndCachePart` chunks before its ack reaches the main thread,
-            // so by the time this branch runs no stale `cache-signals` progress message
-            // can land and bump the status back up. The reset that used to live here was
-            // a band-aid for that race; the structural drain in `GenericSignalReader.
-            // releaseSignalArrays` makes it unnecessary.
-            if (!this._service?.isReady && this._state === 'ready') {
-                this.dispatchEvent(EegRecording.EVENTS.INITIAL_SETUP, 'before')
-                if (this._memoryManager) {
-                    // Calculate needed memory. If the full recording fits in `maxLoadCacheSize`, allocate
-                    // its full sample count per channel and use the static-cache path. Otherwise allocate
-                    // only `3 × blockDuration` seconds per channel where `blockDuration` is computed
-                    // adaptively to maximise block size within the cache budget. Mirrors the
-                    // `_buildDataBlocks` computation on the worker side; both must agree on the value.
-                    const appSettings = window.__EPICURRENTS__?.RUNTIME?.SETTINGS.app
-                    const maxCacheBytes = appSettings?.maxLoadCacheSize ?? 0
-                    const blockDurationCap = appSettings?.dataBlockDuration ?? 3600
-                    // Lock cell (1) + mutex meta fields (5: allocated, start, end,
-                    // data_unit_duration, window_epoch). Must track the meta-field set in
-                    // BiosignalMutex.
-                    let totalMem = 6
-                    const dataFieldsLen = BiosignalMutex.SIGNAL_DATA_POS
-                    let fullSizeFloats = 0
-                    let bytesPerSecond = 0
-                    // Derivation cache slots participate in the budget exactly like source channels.
-                    // `_derivationCacheSlots` was resolved when `_applyDefaultSetups` ran during
-                    // `prepare()`, so by the time the ACTIVATE handler reaches here the setup (with
-                    // its derivations) is already attached to `_setup`.
-                    const derivationSlots = this._derivationCacheSlots()
-                    for (const chan of channels) {
-                        fullSizeFloats += chan.sampleCount
-                        // Annotation channels (samplingRate 0) carry no signal bytes.
-                        bytesPerSecond += chan.samplingRate * 4
-                    }
-                    for (const slot of derivationSlots) {
-                        fullSizeFloats += slot.sampleCount
-                        bytesPerSecond += slot.samplingRate * 4
-                    }
-                    const useRolling = (fullSizeFloats * 4) > maxCacheBytes
-                    // Adaptive block duration: 3 × blockDuration seconds of channel data must fit
-                    // inside ~95 % of the cache budget. Clamp to [60 s, dataBlockDuration cap]
-                    // so a low cache budget still gets a workable (if small) block, and a huge
-                    // budget stops growing past the configured ceiling.
-                    const idealBlockDuration = bytesPerSecond > 0
-                        ? Math.floor(maxCacheBytes * 0.95 / (3 * bytesPerSecond))
-                        : blockDurationCap
-                    const ROLLING_BLOCK_FLOOR = 60
-                    const blockDuration = Math.max(
-                        ROLLING_BLOCK_FLOOR,
-                        Math.min(blockDurationCap, idealBlockDuration)
-                    )
-                    for (const chan of channels) {
-                        const channelSamples = useRolling
-                            ? Math.min(chan.sampleCount, Math.ceil(3 * blockDuration * chan.samplingRate))
-                            : chan.sampleCount
-                        totalMem += channelSamples + dataFieldsLen
-                    }
-                    for (const slot of derivationSlots) {
-                        const slotSamples = useRolling
-                            ? Math.min(slot.sampleCount, Math.ceil(3 * blockDuration * slot.samplingRate))
-                            : slot.sampleCount
-                        totalMem += slotSamples + dataFieldsLen
-                    }
-                    // TODO: Remove once rolling window cache is finalized.
-                    Log.info(
-                        `EegRecording memory request: useRolling=${useRolling} ` +
-                        `maxCache=${maxCacheBytes}B cap=${blockDurationCap}s ideal=${idealBlockDuration}s ` +
-                        `blockDur=${blockDuration}s fullSize=${fullSizeFloats * 4}B totalMem=${totalMem * 4}B`,
-                        SCOPE
-                    )
-                    const memorySuccess = await this._service?.requestMemory(totalMem)
-                    if (!memorySuccess) {
-                        Log.error(`Memory allocation failed.`, SCOPE)
-                        this.state = 'error'
-                        this.errorReason = 'Memory allocation failed'
-                        this.isActive = false
-                        return
-                    }
-                    Log.debug(`Memory allocation complete.`, SCOPE)
-                    const mutex = await this.setupMutex()
-                    if (!mutex) {
-                        Log.error(`Mutex setup failed.`, SCOPE)
-                        this.state = 'error'
-                        this.errorReason = 'Mutex setup failed'
-                        this.isActive = false
-                        return
-                    }
-                    Log.debug(`Buffer setup complete.`, SCOPE)
-                } else {
-                    const dataCache = await this.setupCache()
-                    if (!dataCache) {
-                        Log.error(`Data cache setup failed.`, SCOPE)
-                        this.state = 'error'
-                        this.errorReason = 'Data cache setup failed'
-                        this.isActive = false
-                        return
-                    }
-                    Log.debug(`Data cache setup complete.`, SCOPE)
-                }
-                // Set up the dedicated trend service, connecting it to the EDF SAB.
-                // Use the real worker when SAB is available, substitute otherwise.
-                await this._initTrendService()
-                // Default + extra setups are applied during `prepare()` (so derivations make it
-                // into the memory budget). Montages need the SAB to be in place, so they happen
-                // here, after setupMutex / setupCache.
-                //
-                // Montages added before the SAB existed were published without a worker cache:
-                // the interface `created` lifecycle hook adds settings-sourced extra montages
-                // (project setups such as BrainStatus) at resource creation, when `addMontage`
-                // cannot commission the montage processor because no mutex/cache is available
-                // yet. Snapshot them before applying defaults so we can wire exactly those below
-                // — the montages `_applyDefaultMontages` adds are already wired by `addMontage`.
-                const montagesAddedBeforeSetup = [...this.montages]
-                await this._applyDefaultMontages()
-                // Wire the pre-setup montages now that the mutex / cache is in place. This also
-                // covers the case where `_applyDefaultMontages` returns early (skipDefaultSetups),
-                // which is the project-viewer path where every montage comes from the `created`
-                // hook — without this, activating one errors with "signal cache has not been set
-                // up yet" because its worker-side processor was never commissioned.
-                await this._wireMontageDataSources(montagesAddedBeforeSetup)
-                // Initial setup complete.
-                Log.debug(`EEG recording initial setup complete.`, SCOPE)
-                this.dispatchEvent(EegRecording.EVENTS.INITIAL_SETUP, 'after')
-                // Trends read raw EDF signals from the SAB directly — they are montage-independent.
-                // Do NOT subscribe to activeMontage changes here; a montage switch must not trigger
-                // a trend rebuild.
-                //
-                // Progressive computation: trends start as soon as the first full epoch is cached
-                // and extend automatically as caching advances. Each signalCacheStatus change
-                // either builds the trend objects (first time) or extends existing ones.
-                this.onPropertyChange('signalCacheStatus', () => {
-                    if (!this._trendService) {
-                        return
-                    }
-                    // Forward interruptions whenever we have new ones — the processor needs
-                    // them to map recording time → data time correctly for gap-containing files.
-                    if (this._interruptions.size > 0) {
-                        this._trendService.setInterruptions(this._interruptions)
-                    }
-                    const cachedEnd = this._signalCacheStatus[1]
-                    if (this._trends.size === 0) {
-                        // First epoch available — try to build trend objects now.
-                        this._scheduleTrendSetup()
-                    } else {
-                        // Trends already exist — extend to cover newly cached signal.
-                        this._extendTrendsToCache(cachedEnd)
-                    }
-                }, this.id)
-                this.addEventListener(BiosignalResourceEvents.SIGNAL_CACHING_COMPLETE, () => {
-                    this._signalCachingComplete = true
-                    if (this._trendService) {
-                        if (this._interruptions.size > 0) {
-                            this._trendService.setInterruptions(this._interruptions)
-                        }
-                        // Final pass to catch any epochs between the last cache update
-                        // and the true recording end.
-                        this._extendTrendsToCache(this._signalCacheStatus[1])
-                    }
-                    // Schedule setup for the case where trends were not yet built
-                    // (e.g. autoCompute=false and the user toggled the strip on late).
-                    this._scheduleTrendSetup()
-                }, this.id)
-                if (this._trustedInterruptions) {
-                    // Deliver the complete trusted interruption table to the reader now that
-                    // study setup is done (the EDF duration probe during setup clears the
-                    // discovered table). Marks the table complete, lifting the explored-span
-                    // navigation restriction before the first cache seed.
-                    await this._service?.setInterruptions(this._trustedInterruptions, true)
-                }
-                const cacheOk = await this.cacheSignals()
-                if (cacheOk === false) {
-                    // `cacheSignals` returns false when the worker's cache fill
-                    // returned early — typically because mutex setup left the
-                    // cache "not ready" (e.g. SAB allocation succeeded but a
-                    // downstream init step failed on a recording too large for
-                    // the configured budget). Surfacing the failure on the
-                    // resource lets the renderer fall out of its "Loading data"
-                    // wait instead of hanging on signalCacheStatus = [0, 0].
-                    // `announce` pipes the user-facing wording through the
-                    // viewer's callout system (10 s toast by template default);
-                    // the bare Log message stays terse for SIEM-style ingestion.
-                    Log.error(
-                        `Signal caching failed for ${this.name}.`,
-                        SCOPE,
-                        new Error(`Signal caching failed for ${this.name}.`),
-                        {
-                            announce:
-                                `Could not load "${this.name}" — the recording may be ` +
-                                `too large for the configured memory budget.`,
-                        },
-                    )
-                    this._errorReason = this._errorReason || 'Signal caching failed'
-                    this.state = 'error'
-                }
-                this.dispatchEvent(BiosignalResourceEvents.SIGNAL_CACHING_COMPLETE)
-            }
+            await this._completeSetup()
         }, this.id)
     }
     get events () {
@@ -1019,6 +822,244 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
     }
 
     /**
+     * Run the one-time setup that turns a prepared recording into a displayable one: allocate the
+     * shared buffer (or the JS-heap cache), start the trend service, build the montages, and fill
+     * the cache with signal data.
+     *
+     * Idempotent by the same guard the ACTIVATE handler used to carry — a ready service means the
+     * work is already done, and a resource that has not finished `prepare()` is not yet set up to
+     * receive it. Both callers rely on that: activation calls this on every ACTIVATE, and
+     * {@link preload} may be called on a recording that is about to be activated anyway.
+     *
+     * Split out of the ACTIVATE listener so that {@link preload} can reach it without the resource
+     * being active. Everything below is the listener's original body; the only change is that the
+     * channel loops read `this.channels` rather than the constructor's `channels` argument, which
+     * the listener closed over. The two hold the same channels — `this._channels` is built from
+     * that argument one-to-one in the constructor — and the resource's own list is the right one to
+     * read at setup time in any case.
+     */
+    protected async _completeSetup (): Promise<void> {
+        // Complete loader setup if not already done. Note: no defensive
+        // `signalCacheStatus = [0, 0]` reset here — `releaseSignalArrays` (Level 1 of
+        // the cache lifecycle, called via `releaseBuffers` on close) drains all
+        // in-flight `_readAndCachePart` chunks before its ack reaches the main thread,
+        // so by the time this branch runs no stale `cache-signals` progress message
+        // can land and bump the status back up. The reset that used to live here was
+        // a band-aid for that race; the structural drain in `GenericSignalReader.
+        // releaseSignalArrays` makes it unnecessary.
+        if (!this._service?.isReady && this._state === 'ready') {
+            this.dispatchEvent(EegRecording.EVENTS.INITIAL_SETUP, 'before')
+            if (this._memoryManager) {
+                // Calculate needed memory. If the full recording fits in `maxLoadCacheSize`, allocate
+                // its full sample count per channel and use the static-cache path. Otherwise allocate
+                // only `3 × blockDuration` seconds per channel where `blockDuration` is computed
+                // adaptively to maximise block size within the cache budget. Mirrors the
+                // `_buildDataBlocks` computation on the worker side; both must agree on the value.
+                const appSettings = window.__EPICURRENTS__?.RUNTIME?.SETTINGS.app
+                const maxCacheBytes = appSettings?.maxLoadCacheSize ?? 0
+                const blockDurationCap = appSettings?.dataBlockDuration ?? 3600
+                // Lock cell (1) + mutex meta fields (5: allocated, start, end,
+                // data_unit_duration, window_epoch). Must track the meta-field set in
+                // BiosignalMutex.
+                let totalMem = 6
+                const dataFieldsLen = BiosignalMutex.SIGNAL_DATA_POS
+                let fullSizeFloats = 0
+                let bytesPerSecond = 0
+                // Derivation cache slots participate in the budget exactly like source channels.
+                // `_derivationCacheSlots` was resolved when `_applyDefaultSetups` ran during
+                // `prepare()`, so by the time the ACTIVATE handler reaches here the setup (with
+                // its derivations) is already attached to `_setup`.
+                const derivationSlots = this._derivationCacheSlots()
+                for (const chan of this.channels) {
+                    fullSizeFloats += chan.sampleCount
+                    // Annotation channels (samplingRate 0) carry no signal bytes.
+                    bytesPerSecond += chan.samplingRate * 4
+                }
+                for (const slot of derivationSlots) {
+                    fullSizeFloats += slot.sampleCount
+                    bytesPerSecond += slot.samplingRate * 4
+                }
+                const useRolling = (fullSizeFloats * 4) > maxCacheBytes
+                // Adaptive block duration: 3 × blockDuration seconds of channel data must fit
+                // inside ~95 % of the cache budget. Clamp to [60 s, dataBlockDuration cap]
+                // so a low cache budget still gets a workable (if small) block, and a huge
+                // budget stops growing past the configured ceiling.
+                const idealBlockDuration = bytesPerSecond > 0
+                    ? Math.floor(maxCacheBytes * 0.95 / (3 * bytesPerSecond))
+                    : blockDurationCap
+                const ROLLING_BLOCK_FLOOR = 60
+                const blockDuration = Math.max(
+                    ROLLING_BLOCK_FLOOR,
+                    Math.min(blockDurationCap, idealBlockDuration)
+                )
+                for (const chan of this.channels) {
+                    const channelSamples = useRolling
+                        ? Math.min(chan.sampleCount, Math.ceil(3 * blockDuration * chan.samplingRate))
+                        : chan.sampleCount
+                    totalMem += channelSamples + dataFieldsLen
+                }
+                for (const slot of derivationSlots) {
+                    const slotSamples = useRolling
+                        ? Math.min(slot.sampleCount, Math.ceil(3 * blockDuration * slot.samplingRate))
+                        : slot.sampleCount
+                    totalMem += slotSamples + dataFieldsLen
+                }
+                // TODO: Remove once rolling window cache is finalized.
+                Log.info(
+                    `EegRecording memory request: useRolling=${useRolling} ` +
+                    `maxCache=${maxCacheBytes}B cap=${blockDurationCap}s ideal=${idealBlockDuration}s ` +
+                    `blockDur=${blockDuration}s fullSize=${fullSizeFloats * 4}B totalMem=${totalMem * 4}B`,
+                    SCOPE
+                )
+                const memorySuccess = await this._service?.requestMemory(totalMem)
+                if (!memorySuccess) {
+                    Log.error(`Memory allocation failed.`, SCOPE)
+                    this.state = 'error'
+                    this.errorReason = 'Memory allocation failed'
+                    // Only when actually active: a failed preload is already inactive, and
+                    // assigning false again would dispatch DEACTIVATE and start a background
+                    // unload of a resource that was never up.
+                    if (this._isActive) {
+                        this.isActive = false
+                    }
+                    return
+                }
+                Log.debug(`Memory allocation complete.`, SCOPE)
+                const mutex = await this.setupMutex()
+                if (!mutex) {
+                    Log.error(`Mutex setup failed.`, SCOPE)
+                    this.state = 'error'
+                    this.errorReason = 'Mutex setup failed'
+                    // Only when actually active: a failed preload is already inactive, and
+                    // assigning false again would dispatch DEACTIVATE and start a background
+                    // unload of a resource that was never up.
+                    if (this._isActive) {
+                        this.isActive = false
+                    }
+                    return
+                }
+                Log.debug(`Buffer setup complete.`, SCOPE)
+            } else {
+                const dataCache = await this.setupCache()
+                if (!dataCache) {
+                    Log.error(`Data cache setup failed.`, SCOPE)
+                    this.state = 'error'
+                    this.errorReason = 'Data cache setup failed'
+                    // Only when actually active: a failed preload is already inactive, and
+                    // assigning false again would dispatch DEACTIVATE and start a background
+                    // unload of a resource that was never up.
+                    if (this._isActive) {
+                        this.isActive = false
+                    }
+                    return
+                }
+                Log.debug(`Data cache setup complete.`, SCOPE)
+            }
+            // Set up the dedicated trend service, connecting it to the EDF SAB.
+            // Use the real worker when SAB is available, substitute otherwise.
+            await this._initTrendService()
+            // Default + extra setups are applied during `prepare()` (so derivations make it
+            // into the memory budget). Montages need the SAB to be in place, so they happen
+            // here, after setupMutex / setupCache.
+            //
+            // Montages added before the SAB existed were published without a worker cache:
+            // the interface `created` lifecycle hook adds settings-sourced extra montages
+            // (project setups such as BrainStatus) at resource creation, when `addMontage`
+            // cannot commission the montage processor because no mutex/cache is available
+            // yet. Snapshot them before applying defaults so we can wire exactly those below
+            // — the montages `_applyDefaultMontages` adds are already wired by `addMontage`.
+            const montagesAddedBeforeSetup = [...this.montages]
+            await this._applyDefaultMontages()
+            // Wire the pre-setup montages now that the mutex / cache is in place. This also
+            // covers the case where `_applyDefaultMontages` returns early (skipDefaultSetups),
+            // which is the project-viewer path where every montage comes from the `created`
+            // hook — without this, activating one errors with "signal cache has not been set
+            // up yet" because its worker-side processor was never commissioned.
+            await this._wireMontageDataSources(montagesAddedBeforeSetup)
+            // Initial setup complete.
+            Log.debug(`EEG recording initial setup complete.`, SCOPE)
+            this.dispatchEvent(EegRecording.EVENTS.INITIAL_SETUP, 'after')
+            // Trends read raw EDF signals from the SAB directly — they are montage-independent.
+            // Do NOT subscribe to activeMontage changes here; a montage switch must not trigger
+            // a trend rebuild.
+            //
+            // Progressive computation: trends start as soon as the first full epoch is cached
+            // and extend automatically as caching advances. Each signalCacheStatus change
+            // either builds the trend objects (first time) or extends existing ones.
+            this.onPropertyChange('signalCacheStatus', () => {
+                if (!this._trendService) {
+                    return
+                }
+                // Forward interruptions whenever we have new ones — the processor needs
+                // them to map recording time → data time correctly for gap-containing files.
+                if (this._interruptions.size > 0) {
+                    this._trendService.setInterruptions(this._interruptions)
+                }
+                const cachedEnd = this._signalCacheStatus[1]
+                if (this._trends.size === 0) {
+                    // First epoch available — try to build trend objects now.
+                    this._scheduleTrendSetup()
+                } else {
+                    // Trends already exist — extend to cover newly cached signal.
+                    this._extendTrendsToCache(cachedEnd)
+                }
+            }, this.id)
+            this.addEventListener(BiosignalResourceEvents.SIGNAL_CACHING_COMPLETE, () => {
+                this._signalCachingComplete = true
+                if (this._trendService) {
+                    if (this._interruptions.size > 0) {
+                        this._trendService.setInterruptions(this._interruptions)
+                    }
+                    // Final pass to catch any epochs between the last cache update
+                    // and the true recording end.
+                    this._extendTrendsToCache(this._signalCacheStatus[1])
+                }
+                // Schedule setup for the case where trends were not yet built
+                // (e.g. autoCompute=false and the user toggled the strip on late).
+                this._scheduleTrendSetup()
+            }, this.id)
+            if (this._trustedInterruptions) {
+                // Deliver the complete trusted interruption table to the reader now that
+                // study setup is done (the EDF duration probe during setup clears the
+                // discovered table). Marks the table complete, lifting the explored-span
+                // navigation restriction before the first cache seed.
+                await this._service?.setInterruptions(this._trustedInterruptions, true)
+            }
+            const cacheOk = await this.cacheSignals()
+            if (cacheOk === false) {
+                // `cacheSignals` returns false when the worker's cache fill
+                // returned early — typically because mutex setup left the
+                // cache "not ready" (e.g. SAB allocation succeeded but a
+                // downstream init step failed on a recording too large for
+                // the configured budget). Surfacing the failure on the
+                // resource lets the renderer fall out of its "Loading data"
+                // wait instead of hanging on signalCacheStatus = [0, 0].
+                // `announce` pipes the user-facing wording through the
+                // viewer's callout system (10 s toast by template default);
+                // the bare Log message stays terse for SIEM-style ingestion.
+                // The announce is raised only for a recording the user asked for. A preload
+                // failing is not worth interrupting them about — the epoch is imported again,
+                // the slow way, if they ever reach it.
+                Log.error(
+                    `Signal caching failed for ${this.name}.`,
+                    SCOPE,
+                    new Error(`Signal caching failed for ${this.name}.`),
+                    this._isPreloading
+                        ? undefined
+                        : {
+                            announce:
+                                `Could not load "${this.name}" — the recording may be ` +
+                                `too large for the configured memory budget.`,
+                        },
+                )
+                this._errorReason = this._errorReason || 'Signal caching failed'
+                this.state = 'error'
+            }
+            this.dispatchEvent(BiosignalResourceEvents.SIGNAL_CACHING_COMPLETE)
+        }
+    }
+
+    /**
      * Wire each of the given montages' worker-side processors to the currently active signal
      * source — the SAB mutex when present, otherwise the JS-heap cache. Called from the ACTIVATE
      * handler for montages that were added before the SAB existed (e.g. via the interface
@@ -1217,6 +1258,27 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
         //    }
         //}
         return response
+    }
+
+    async preload (): Promise<boolean> {
+        if (this._state !== 'ready') {
+            Log.warn(`Cannot preload ${this.name} before it has been prepared.`, SCOPE)
+            return false
+        }
+        // The setup below was written for the activation path and reads as "we are active" in
+        // places — `cacheSignals` refuses outright on an inactive resource, which would leave the
+        // buffer allocated and empty and, because the service is ready by then, make the later
+        // ACTIVATE skip the whole block and never fill it. The flag tells those checks this is a
+        // deliberate preparation rather than a background resource jumping the queue.
+        this._isPreloading = true
+        try {
+            await this._completeSetup()
+        } finally {
+            this._isPreloading = false
+        }
+        // Read the state back through the getter: `_completeSetup` flips it to 'error' when
+        // allocation or caching fails, which the narrowing from the guard above would hide.
+        return this.state !== 'error'
     }
 
     async releaseBuffers () {

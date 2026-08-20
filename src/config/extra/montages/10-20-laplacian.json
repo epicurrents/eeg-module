@@ -1,5 +1,5 @@
 {
-    "name": "10-20-laplacian",
+    "name": "laplacian",
     "label": "Laplacian",
     "description": ["Source derivation (Laplacian) montage for the 10-20 setup"],
     "electrodes": [
