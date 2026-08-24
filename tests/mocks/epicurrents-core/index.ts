@@ -12,6 +12,15 @@ export class GenericBiosignalEvent {
         this.label = label
         this.options = options
     }
+    static labelFromTemplate(template: any): string {
+        if (template.label) {
+            return template.label
+        }
+        if (template.value === null || template.value === undefined) {
+            return ''
+        }
+        return Array.isArray(template.value) ? template.value.join(', ') : String(template.value)
+    }
 }
 
 export class ResourceLabel {
@@ -228,6 +237,7 @@ export class GenericBiosignalResource {
     addEventListener(_ev: any, _cb: any, _id?: any) { }
     dispatchEvent(_ev: any, _phase?: any) { }
     dispatchPropertyChangeEvent(_prop: string, _value: any, _old: any, _phase?: any) { }
+    onPropertyChange(_prop: any, _cb: any, _id?: any) { }
     async setupMutex() { return {} }
     async setupCache() { return {} }
     async cacheSignals() { return true }
@@ -255,6 +265,7 @@ export class GenericBiosignalService {
         this._worker = worker
         this._manager = manager
     }
+    onPropertyChange(_prop: any, _cb: any, _id?: any) { }
     async handleMessage(message: any) {
         return true
     }
