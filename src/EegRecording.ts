@@ -12,7 +12,7 @@ import {
 } from '@epicurrents/core'
 import { AssetEvents, BiosignalResourceEvents } from '@epicurrents/core/dist/events'
 import { TrendService } from '@epicurrents/core/dist/assets'
-import { calculateSignalOffsets, INDEX_NOT_ASSIGNED } from '@epicurrents/core/dist/util'
+import { calculateSignalOffsets, INDEX_NOT_ASSIGNED, resolveTrendEpochLength } from '@epicurrents/core/dist/util'
 import type {
     AnnotationEventTemplate,
     AnnotationLabelTemplate,
@@ -555,7 +555,11 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
         if (hasAmplitude) {
             return
         }
-        const epochLength = settings.trends?.amplitude?.epochLength ?? 5
+        const epochLength = resolveTrendEpochLength(this.totalDuration, settings.trends?.amplitude)
+        if (!epochLength) {
+            Log.warn(`Cannot build amplitude trends: no epoch length configured or derivable.`, SCOPE)
+            return
+        }
         if (!this._trendService) {
             Log.warn(`Cannot build trends: trend service not initialised yet.`, SCOPE)
             return
@@ -597,8 +601,12 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
         if (!this._trendsEnabled.has('spectrogram') || existingSpec.length > 0) {
             return
         }
-        const specCfg  = (settings.trends as Record<string, unknown> & { spectrogram?: { epochLength?: number, maxFreqHz?: number, averageReference?: boolean } })?.spectrogram
-        const epochLength = specCfg?.epochLength ?? 1
+        const specCfg = settings.trends?.spectrogram
+        const epochLength = resolveTrendEpochLength(this.totalDuration, specCfg)
+        if (!epochLength) {
+            Log.warn(`Cannot build spectrogram trends: no epoch length configured or derivable.`, SCOPE)
+            return
+        }
         const maxFreqHz   = specCfg?.maxFreqHz   ?? 30
         if (!this._trendService) {
             Log.warn(`Cannot build spectrogram trends: trend service not initialised yet.`, SCOPE)
@@ -653,7 +661,11 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
             return
         }
         const ratioCfg = settings.trends?.ratio
-        const epochLength = ratioCfg?.epochLength ?? 2
+        const epochLength = resolveTrendEpochLength(this.totalDuration, ratioCfg)
+        if (!epochLength) {
+            Log.warn(`Cannot build ratio trends: no epoch length configured or derivable.`, SCOPE)
+            return
+        }
         // Index-copy the band arrays into plain tuples. The settings store is a Vue
         // reactive Proxy and arrays on it are Proxy-wrapped — passing one through
         // postMessage triggers a DataCloneError because Proxies aren't structured-clonable.
@@ -708,7 +720,11 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
             return
         }
         const mathCfg = settings.trends?.pdbsi
-        const epochLength = mathCfg?.epochLength ?? 2
+        const epochLength = resolveTrendEpochLength(this.totalDuration, mathCfg)
+        if (!epochLength) {
+            Log.warn(`Cannot build pdBSI trend: no epoch length configured or derivable.`, SCOPE)
+            return
+        }
         // Same Proxy-cloning workaround as in `_buildRatioTrends`.
         const band: [number, number] = [
             mathCfg?.band?.[0] ?? 1,

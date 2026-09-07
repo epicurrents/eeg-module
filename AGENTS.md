@@ -142,14 +142,28 @@ A **trend** is a derived per-epoch signal computed from one or more montage chan
 
 | Piece | Location | Role |
 |---|---|---|
-| Concrete trend | `EegAmplitudeIntegratedTrend` in `src/components/` | Fixes `type: 'amplitude'`, NICU-standard defaults (5 s epochs, 2 / 15 Hz band-pass); `samplingRate` is `1 / epochLength` |
+| Concrete trend | `EegAmplitudeIntegratedTrend` in `src/components/` | Fixes `type: 'amplitude'` and the NICU-standard 2 / 15 Hz band-pass; `samplingRate` is `1 / epochLength`. Epoch length is not fixed here — see below |
 | Resolver | `resolveAeegDerivation(setup, source, reference)` in `src/util/derivation.ts` | Maps a derivation's source/reference electrode names onto setup channel indices, returning `{ sourceChannels, referenceChannels }` or `null`. Handles the reference-less case (the source channel already carries the full derivation) as well as explicit source/reference pairs |
 | Lifecycle | `EegRecording.ensureTrendSetup(type)` + `_setupTrend(trend, initialCachedEnd)` | Setup is triggered on montage change and as signal caching progresses. Compute is gated on `settings.aeeg.autoCompute` (default `false`) **or** an explicit request registered through `ensureTrendSetup`, which the UI calls when the trend strip is first made visible |
 | Settings | `CommonBiosignalSettings.trends.amplitude` (math, in core) + `EegModuleSettings.aeeg` (derivations, display) | EEG defaults set in `src/config/index.ts` |
 
+### Lifecycle and compute gating
+
 `ensureTrendSetup(type = 'amplitude')` adds the type to `_trendsEnabled` and schedules a setup. Once a type is in that set, every subsequent `_setupTrend` invocation proceeds regardless of `autoCompute` — so montage changes and recompute requests always rebuild trends for types the user has already opened, while the on-demand semantics still hold (nothing happens until the UI first requests setup for a given type). `_trendSetupScheduled` collapses a `SIGNAL_CACHING_COMPLETE` and an `activeMontage` property change that land in the same synchronous turn into one setup. `clearTrendTypes()` empties the set — call it before `ensureTrendSetup` when switching trend types so stale types don't cause unintended builds.
 
 `autoCompute` is off by default because trend compute runs in the same montage worker as the initial signal requests, and the per-epoch CPU work would otherwise delay the first page render until caching is well underway. Set it to `true` for kiosk/dashboard deployments where the trend is the primary display.
+
+### Epoch length
+
+All four trend types ship `trends.<type>.epochLength: 0`, which is the request to derive a length from the recording rather than a missing setting. The four `_build*Trends` methods resolve it through core's `resolveTrendEpochLength(this.totalDuration, settings.trends?.<type>)` and skip the build if that comes back 0, so nothing ever divides by a zero-length epoch.
+
+The ladder is `TREND_EPOCH_SCALING` in `src/config/index.ts`, shared by every type and copied per type so configuring one leaves the others alone: 2 s up to 45 minutes, 5 s to an hour and a half, 10 s beyond that, and past roughly five and a half hours a target of 2000 epochs at ten-second granularity takes over — the larger of the step and the target wins, so the handover needs no threshold of its own.
+
+Two seconds is the floor and no step goes below it. It is a floor on what an epoch can *mean*: EEG activity worth seeing on a trend routinely runs longer than a second, and a one-second epoch splits such an event in half and classifies each half on its own. The band trends want the same floor for their own reason, since a one-second epoch resolves the FFT only to 1 Hz while delta (1–4 Hz) and theta (4–8 Hz) are a few Hz wide.
+
+A deployment or a user that writes a non-zero `epochLength` pins it, and the derivation never overrides it. That is why zero rather than an absent key is the sentinel — settings arrive merged, so an absent key and a deliberate default cannot be told apart, and a derivation keyed on absence would silently beat a deployment's explicit choice.
+
+### Signal layout and new types
 
 The amplitude trend's signal layout is implicit and interleaved — `[min0, max0, min1, max1, …]` per epoch, so a renderer reads `signal.length / 2` epochs. A new per-modality trend wrapper should document its own layout in the wrapper class.
 
