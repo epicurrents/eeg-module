@@ -12,6 +12,7 @@ import type {
     ConfigStudyLoader,
     FileFormatImporter,
     FileFormatExporter,
+    FileSystemItem,
     SafeObject,
     StudyContext,
 } from '@epicurrents/core/dist/types'
@@ -134,18 +135,31 @@ export default class EegStudyLoader extends BiosignalStudyLoader {
 
     /**
      * Claim a loaded `study` for the EEG modality. The format importers are modality-agnostic and
-     * stamp their data file as a generic `signal`; every EEG loading path has to narrow that, or
+     * stamp their data files as a generic `signal`; every EEG loading path has to narrow that, or
      * services looking up their data file by modality find nothing.
+     *
+     * Every signal file is claimed, not just the first: a study loaded from a directory may be
+     * assembled from several of them, and one claimed file would present the study to the service
+     * as whichever member happened to sort first.
      */
     protected _claimAsEeg (study: StudyContext | null): StudyContext | null {
         if (!study) {
             return null
         }
         study.modality = 'eeg'
-        if (study.files[0] && study.files[0].modality === 'signal') {
-            study.files[0].modality = `eeg`
+        for (const file of study.files) {
+            if (file.modality === 'signal') {
+                file.modality = 'eeg'
+            }
         }
         return study
+    }
+
+    public async loadFromDirectory (
+        dir: FileSystemItem,
+        config?: ConfigStudyLoader
+    ): Promise<StudyContext | null> {
+        return this._claimAsEeg(await super.loadFromDirectory(dir, config))
     }
 
     public async loadFromFile (

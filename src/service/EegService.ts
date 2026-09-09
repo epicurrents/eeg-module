@@ -56,14 +56,20 @@ export default class EegService extends GenericBiosignalService implements Biosi
         options?: UrlAccessOptions,
         formatHeader?: unknown
     ) {
-        // Find the data file; there should only be one.
-        const dataFile = study.files.filter(f => f.modality === 'eeg' && f.role === 'data')[0]
+        // Find the data files. A single-file format has exactly one; a format whose signal spans a
+        // directory has all of them, and the first of those is not the recording on its own.
+        const dataFiles = study.files.filter(f => f.modality === 'eeg' && f.role === 'data')
+        const dataFile = dataFiles[0]
         const fileUrl = dataFile?.url
         // A study opened from the local file system carries the File itself alongside the object URL
         // that was minted for it. Hand the File to the worker so part reads slice it directly: the
         // URL is a `blob:` reference to the very same bytes, and reading it back through the fetch
         // stack copies every requested range for nothing.
         const sourceFile = dataFile?.file || null
+        // A format whose signal spans several files cannot be opened from the single data file
+        // above, since no one member carries the whole recording. The full set rides along for the
+        // readers that need it; single-file readers ignore it.
+        const sourceFiles = dataFiles.map(f => ({ file: f.file, name: f.name, url: f.url }))
         // Snapshot the main thread's app settings so the worker starts with the same configured
         // values rather than the bundled defaults. The worker's `_buildDataBlocks` decides
         // `_useRolling` from `maxLoadCacheSize` and `dataBlockDuration`; if those don't match the
@@ -85,6 +91,7 @@ export default class EegService extends GenericBiosignalService implements Biosi
                     ['header', header.serializable],
                     ['url', fileUrl],
                     ['file', sourceFile],
+                    ['files', sourceFiles],
                     ['authHeader', options?.authHeader || null],
                     ['formatHeader', formatHeader || null],
                     ['settingsApp', settingsApp],
