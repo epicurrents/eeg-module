@@ -79,6 +79,12 @@ const EEG = safeObjectFrom({
             if (activeRes.filters?.notch !== undefined) {
                 activeRes.setNotchFilter(value)
             }
+        } else if (property === 'signal-polarity-inverted') {
+            if (typeof value !== 'boolean') {
+                logInvalidMutation(property, value, SCOPE, "Value must be a boolean.")
+                return
+            }
+            activeRes.setSignalPolarityInverted(value)
         } else if (property === 'sensitivity') {
             if (typeof value !== 'number' || value <= 0) {
                 logInvalidMutation(property, value, SCOPE, "Value must be a positive number.")
