@@ -152,6 +152,8 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
                 channels[i]
             ))
         }
+        // Raw-mode channel edits reach the plot through the resource; the montage relays its own.
+        this._relaySourceChannelChanges(this._channels)
         // Service is set here and should only become null if the resource is destroyed.
         this._service = new EegService(this, fileWorker, this._memoryManager || undefined)
         // Forward reader-buffer moves to the trend worker. The trend worker's input views couple
@@ -238,6 +240,7 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
     }
     set channels (value: SourceChannel[]) {
         this._channels = value
+        this._relaySourceChannelChanges(value)
     }
     get hasVideo () {
         return (this._videos.length > 0)

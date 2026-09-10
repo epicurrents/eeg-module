@@ -202,6 +202,7 @@ export class GenericSourceChannel {
         this.visible = visible
         this._laterality = undefined
     }
+    addEventListener(_ev: any, _cb: any, _id?: any) { }
 }
 
 export class GenericBiosignalResource {
@@ -241,6 +242,13 @@ export class GenericBiosignalResource {
     async setupMutex() { return {} }
     async setupCache() { return {} }
     async cacheSignals() { return true }
+    _relaySourceChannelChanges(channels: any[]) {
+        for (const chan of channels) {
+            chan.addEventListener(/^property-change:/, () => {
+                this.dispatchPropertyChangeEvent('channels', this._channels, this._channels)
+            }, this.id)
+        }
+    }
     _setPropertyValue(prop: string, value: any) { (this as any)[prop] = value }
     setMemoryManager(mgr: any) { this._memoryManager = mgr }
     get events() { return this._events }
