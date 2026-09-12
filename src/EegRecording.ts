@@ -1095,12 +1095,18 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
         }
     }
 
+    // Both template methods return what they constructed, which is not the same as what was
+    // stored: addEvents/addLabels skip an annotation that duplicates one already present, and
+    // assign an id only to those they keep. A caller that needs to correlate its own records
+    // with the stored annotations — the id is generated here, so it has no other way to learn
+    // it — reads the id back off these objects, where a falsy id marks a skipped duplicate.
     addEventsFromTemplates (_context: PropertyChangeContext | null, ...templates: AnnotationEventTemplate[]) {
         const events = [] as EegEvent[]
         for (const tpl of templates) {
             events.push(EegEvent.fromTemplate(tpl))
         }
         this.addEvents({ source: 'system' }, ...events)
+        return events
     }
 
     addLabelsFromTemplates (_context: PropertyChangeContext | null, ...templates: AnnotationLabelTemplate[]) {
@@ -1109,6 +1115,7 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
             labels.push(EegLabel.fromTemplate(tpl))
         }
         this.addLabels({ source: 'system' }, ...labels)
+        return labels
     }
 
     async addMontage (
