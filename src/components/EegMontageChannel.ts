@@ -11,7 +11,7 @@ import type {
     BiosignalChannel,
     BiosignalMontage,
     MontageChannel,
-} from '@epicurrents/core/dist/types'
+} from '@epicurrents/core/types'
 
 //const SCOPE = 'EegMontageChannel'
 

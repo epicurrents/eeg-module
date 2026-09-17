@@ -6,7 +6,7 @@
  */
 
 import { BiosignalStudyLoader, GenericBiosignalHeader } from '@epicurrents/core'
-import { MB_BYTES } from '@epicurrents/core/dist/util'
+import { MB_BYTES } from '@epicurrents/core/util'
 import type {
     BiosignalChannel,
     ConfigStudyLoader,
@@ -15,7 +15,7 @@ import type {
     FileSystemItem,
     SafeObject,
     StudyContext,
-} from '@epicurrents/core/dist/types'
+} from '@epicurrents/core/types'
 import EegRecording from '../EegRecording'
 import type { EegResource } from '../types'
 //import EegRecording from '../EegRecording'

@@ -5,7 +5,7 @@
  * @license    Apache-2.0
  */
 
-import type { BiosignalTrendService } from '@epicurrents/core/dist/types'
+import type { BiosignalTrendService } from '@epicurrents/core/types'
 import EegTrend from './EegTrend'
 
 /**

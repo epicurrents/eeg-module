@@ -9,7 +9,7 @@ import {
     type BaseModuleSettings,
     type CommonBiosignalSettings,
     type SettingsColor,
-} from '@epicurrents/core/dist/types'
+} from '@epicurrents/core/types'
 
 export type EegModuleSettings = BaseModuleSettings & CommonBiosignalSettings & {
     /** List of channel types and their (known) corresponding signal labels. */

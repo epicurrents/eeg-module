@@ -15,7 +15,7 @@ import type {
     MemoryManager,
     MontageChannel,
     SetupChannel,
-} from '@epicurrents/core/dist/types'
+} from '@epicurrents/core/types'
 import EegMontageChannel from './EegMontageChannel'
 import type { EegResource } from '#types'
 

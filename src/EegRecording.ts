@@ -10,9 +10,9 @@ import {
     GenericBiosignalHeader,
     GenericBiosignalResource,
 } from '@epicurrents/core'
-import { AssetEvents, BiosignalResourceEvents } from '@epicurrents/core/dist/events'
-import { TrendService } from '@epicurrents/core/dist/assets'
-import { calculateSignalOffsets, INDEX_NOT_ASSIGNED, resolveTrendEpochLength } from '@epicurrents/core/dist/util'
+import { AssetEvents, BiosignalResourceEvents } from '@epicurrents/core/events'
+import { TrendService } from '@epicurrents/core/assets'
+import { calculateSignalOffsets, INDEX_NOT_ASSIGNED, resolveTrendEpochLength } from '@epicurrents/core/util'
 import type {
     AnnotationEventTemplate,
     AnnotationLabelTemplate,
@@ -30,7 +30,7 @@ import type {
     StudyContext,
     SourceChannel,
     UrlAccessOptions,
-} from '@epicurrents/core/dist/types'
+} from '@epicurrents/core/types'
 import EegEvent from './components/EegEvent'
 import EegLabel from './components/EegLabel'
 import EegService from './service/EegService'
@@ -114,7 +114,7 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
     protected _setups: BiosignalSetup[] = []
     protected _videos: EegVideo[] = []
     /** Dedicated trend service — created on first activation, shared by all trends. */
-    protected _trendService: import('@epicurrents/core/dist/types').BiosignalTrendService | null = null
+    protected _trendService: import('@epicurrents/core/types').BiosignalTrendService | null = null
 
     /**
      * Create a new EegRecording.

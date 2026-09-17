@@ -11,7 +11,7 @@ import type {
     ConfigMapChannels,
     SourceChannel,
     VideoAttachment,
-} from '@epicurrents/core/dist/types'
+} from '@epicurrents/core/types'
 
 /**
  * Properties expected of an EEG file header signal.

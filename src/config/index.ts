@@ -5,7 +5,7 @@
  * @license    Apache-2.0
  */
 
-import type { BiosignalAnnotationEvent, TrendEpochScaling } from '@epicurrents/core/dist/types'
+import type { BiosignalAnnotationEvent, TrendEpochScaling } from '@epicurrents/core/types'
 import { type EegModuleSettings } from '#types'
 /**
  * Epoch lengths by recording length, shared by every trend type.

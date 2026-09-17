@@ -11,9 +11,9 @@ import type {
     BiosignalAnnotationEventOptions,
     CodedEventProperties,
     SettingsColor,
-} from '@epicurrents/core/dist/types'
+} from '@epicurrents/core/types'
 import type { EegResourceEvent } from '#types'
-import { objectToReadOnly } from '@epicurrents/core/dist/util'
+import { objectToReadOnly } from '@epicurrents/core/util'
 import { Log } from 'scoped-event-log'
 
 const SCOPE = 'EegEvent'

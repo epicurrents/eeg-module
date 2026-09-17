@@ -10,7 +10,7 @@ import type {
     BiosignalSetup,
     BiosignalTrendService,
     BiosignalTrendType,
-} from '@epicurrents/core/dist/types'
+} from '@epicurrents/core/types'
 import { resolveAeegDerivation } from '../util/derivation'
 
 /**

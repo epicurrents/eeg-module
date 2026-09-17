@@ -5,15 +5,15 @@
  * @license    Apache-2.0
  */
 
-import { logInvalidMutation } from '@epicurrents/core/dist/runtime'
-import { safeObjectFrom } from '@epicurrents/core/dist/util'
+import { logInvalidMutation } from '@epicurrents/core/runtime'
+import { safeObjectFrom } from '@epicurrents/core/util'
 import type {
     DataResource,
     RuntimeResourceModule,
     RuntimeResourceModuleConfig,
     SafeObject,
     StateManager,
-} from '@epicurrents/core/dist/types'
+} from '@epicurrents/core/types'
 import type { EegResource } from '../types'
 
 const SCOPE = 'eeg-runtime-module'

@@ -5,7 +5,7 @@
  * @license    Apache-2.0
  */
 
-import { INDEX_NOT_ASSIGNED } from '@epicurrents/core/dist/util'
+import { INDEX_NOT_ASSIGNED } from '@epicurrents/core/util'
 import { GenericBiosignalService } from '@epicurrents/core'
 import type {
     BiosignalDataService,
@@ -17,7 +17,7 @@ import type {
     StudyContext,
     UrlAccessOptions,
     WorkerResponse,
-} from '@epicurrents/core/dist/types'
+} from '@epicurrents/core/types'
 import { Log } from 'scoped-event-log'
 
 const SCOPE = "EegService"

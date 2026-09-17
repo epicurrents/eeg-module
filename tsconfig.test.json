@@ -17,7 +17,7 @@
       "@epicurrents/core/*": ["tests/mocks/epicurrents-core/*"],
       "scoped-event-log": ["tests/mocks/scoped-event-log.ts"],
       "#*": ["src/*"],
-      "#types": ["tests/mocks/epicurrents-core/dist/types.ts"]
+      "#types": ["tests/mocks/epicurrents-core/types.ts"]
     }
     ,
     "noImplicitAny": false

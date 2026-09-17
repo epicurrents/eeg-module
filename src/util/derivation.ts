@@ -5,7 +5,7 @@
  * @license    Apache-2.0
  */
 
-import type { BiosignalSetup, SetupChannel } from '@epicurrents/core/dist/types'
+import type { BiosignalSetup, SetupChannel } from '@epicurrents/core/types'
 
 /**
  * Normalise an electrode label for case-insensitive matching. Strips whitespace and lowercases —
