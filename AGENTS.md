@@ -9,11 +9,10 @@ This package depends on `@epicurrents/core` and shares a single toolchain with i
 | Tool | Version |
 |---|---|
 | TypeScript | `^5.7.0` |
-| ts-loader | `^9.5.1` |
-| webpack | `^5.73.0` |
+| Vite | `^7.3.1` |
 | tsconfig base | extends `@epicurrents/core/tsconfig.base.json` |
 
-Do not override `tsconfig.base.json` options per-package without a comment explaining why. Both build outputs must be regenerated together after any shared-code change: the UMD bundle (`umd/`) and the TSC `dist/` output are separate artifacts, and rebuilding only one leaves a stale mismatch.
+Do not override `tsconfig.base.json` options per-package without a comment explaining why. `npm run build` produces one artifact, the ESM `dist/`: [vite.config.mjs](vite.config.mjs) emits the JavaScript, and `epicurrents-build-types` from core emits the declarations and rewrites their `#` aliases into paths a consumer can resolve. The module has no worker of its own, so it needs no standalone bundle.
 
 ---
 
@@ -196,6 +195,8 @@ These are shared between the two views and between this package and its consumer
 - **Electrode positions are not mesh positions.** A montage defines them on an idealised head; the mesh is a real scalp, and the two differ by millimetres. `electrodeAnchors` projects them onto the mesh for drawing, `electrodes` keeps them as the montage defines them.
 
 ### Assets
+
+The JSON under `src/config/` is imported by the sources that need it, so the build carries its contents in `dist/` rather than copying the files. A setup nothing imports — the 10-10 pair, and the [defaults.json](src/config/defaults.json) catalogue naming them — is therefore not part of the published package; wire one into a source import to ship it.
 
 `src/config/topography/` holds generated JSON — an electrode position table and one baked field map per channel set. **Generated, not hand-edited**: `tools/topography/` regenerates and verifies them, and its README covers baking a map for a new channel set. Numeric arrays are base64 of packed binary in a fixed layout that the writer and the reader hold independently, versioned so the two cannot silently drift.
 
