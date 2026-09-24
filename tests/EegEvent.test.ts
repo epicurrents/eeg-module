@@ -30,7 +30,7 @@ describe('EegEvent', () => {
     })
 
     test('lists the shared categories before its own', () => {
-        expect(Object.keys(EegEvent.CODED_EVENTS)).toEqual(['TECHNICAL', 'INTERVENTION', 'OBSERVATION', 'ENVIRONMENT', ...CATEGORIES])
+        expect(Object.keys(EegEvent.CODED_EVENTS)).toEqual(['TECHNICAL', 'INTERVENTION', 'OBSERVATION', 'ENVIRONMENT', 'PHYSIOLOGY', ...CATEGORIES])
     })
 
     test('finds a shared acquisition term through the EEG class', () => {
