@@ -29,6 +29,8 @@ src/
     EegSourceChannel.ts   # physical electrode channel
     EegMontageChannel.ts  # derived (montage) channel
     EegEvent.ts           # timed event annotation
+    vocabulary/
+      eeg-events.json     # coded event vocabulary: the activation set and the findings
     EegLabel.ts           # label annotation
     EegVideo.ts           # associated video resource
     EegAmplitudeIntegratedTrend.ts  # aEEG trend wrapper (see Trends below)
@@ -100,6 +102,12 @@ All other commission handling (`cacheSignals`, `getSignals`, `setupMutex`, `setu
 ### Event pattern filtering
 
 The `EegRecording.events` setter applies `ignorePatterns` (regex) and `convertPatterns` (regex → property map) from EEG module settings before calling the base class setter. This lets deployment-specific annotation labels be suppressed or re-mapped without touching the decoder.
+
+### Coded events — [src/components/vocabulary/eeg-events.json](src/components/vocabulary/eeg-events.json)
+
+`EegEvent.CODED_EVENTS` is the shared set of core's `GenericBiosignalEvent` (TECHNICAL, INTERVENTION, OBSERVATION, ENVIRONMENT) followed by this module's own categories, loaded from the vocabulary file and stacked with `mergeCodedEvents`. ACTIVATION is the acquisition half of the EEG set — eyes closed and open, hyperventilation with its start and end, photic stimulation per frequency, the sensory stimuli (auditory and verbal kept apart, tactile, noxious with the method in `meta`, non-photic visual) and passive eye opening — and is what a consuming platform registers as the `epicurrents.eeg` vocabulary; the finding categories are scoped `finding` and stay viewer-side. The lookup and extension statics are inherited from core and read `this.CODED_EVENTS`, so `EegEvent.getEventForCode` finds a shared term and `EegEvent.extendEvents('OTHER', …)` writes into this module's table while `EegEvent.extendEvents('OBSERVATION', …)` writes into core's. The file's `version` moves whenever a term is added, deprecated or its crosswalk changes; a code never changes once shipped. The crosswalk columns were checked against DICOM CID 3035, whose own table repeats the nystagmoid identifier for slow eye movements and has one code for swallowing and chewing; those are not errors here. Design and term tables: the consuming platform repository's `docs/engineering-notes/annotation-event-vocabulary.md`.
+
+The test mock of core under [tests/mocks/epicurrents-core/](tests/mocks/epicurrents-core/) loads core's vocabulary file and its loaders from the core checkout beside this package, so an `EegEvent` test sees the real merged view without building core.
 
 ### EegMontage
 

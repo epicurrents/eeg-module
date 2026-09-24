@@ -1,5 +1,76 @@
 // Minimal mocks for @epicurrents/core used in unit tests.
+// The vocabulary loaders are the real ones, reached through the core checkout beside this package: EegEvent stacks
+// its table on the base one with them, and a stand-in would hide a mismatch between the two.
+import { codedEventsFromVocabulary, mergeCodedEvents } from '../../../../core/src/assets/annotation/vocabulary'
+import biosignalVocabulary from '../../../../core/src/assets/annotation/vocabulary/biosignal-events.json'
+
+/** The shared acquisition set, loaded from the core checkout beside this package so an EEG test sees the real merged view. */
+const BIOSIGNAL_CODED_EVENTS = codedEventsFromVocabulary(biosignalVocabulary as any)
+
+export { codedEventsFromVocabulary, mergeCodedEvents }
+
 export class GenericBiosignalEvent {
+    /** The shared table; the statics below read `this.CODED_EVENTS` the way the real base class does. */
+    static get CODED_EVENTS (): Record<string, Record<string, any>> {
+        return BIOSIGNAL_CODED_EVENTS
+    }
+    static addStandardEventCodes (standard: string, codes: Record<string, Record<string, number | string>>) {
+        for (const [category, events] of Object.entries(codes)) {
+            const categoryEvents = this.CODED_EVENTS[category]
+            if (!categoryEvents) {
+                continue
+            }
+            for (const [eventName, eventCode] of Object.entries(events)) {
+                const event = categoryEvents[eventName]
+                if (!event) {
+                    continue
+                }
+                if (!event.standardCodes) {
+                    Object.assign(event, { standardCodes: {} })
+                } else if (Object.hasOwn(event.standardCodes, standard)) {
+                    continue
+                }
+                Object.assign(event.standardCodes, { [standard]: eventCode })
+            }
+        }
+    }
+    static extendEvents (category: string, events: Record<string, any>) {
+        const categoryEvents = this.CODED_EVENTS[category]
+        if (!categoryEvents) {
+            throw new Error(`Category '${category}' does not exist in CODED_EVENTS.`)
+        }
+        for (const eventKey of Object.keys(events)) {
+            if (Object.hasOwn(categoryEvents, eventKey)) {
+                throw new Error(`Event key '${eventKey}' already exists in category '${category}'.`)
+            }
+        }
+        Object.assign(categoryEvents, events)
+    }
+    static getEventForCode (code: string, standard?: string) {
+        for (const category of Object.values(this.CODED_EVENTS)) {
+            for (const event of Object.values(category)) {
+                if (standard && event.standardCodes && event.standardCodes[standard] === code) {
+                    return event
+                } else if (event.code === code) {
+                    return event
+                }
+            }
+        }
+        return null
+    }
+    static getEventForLabel (label: string, labelMatchers: Record<string, RegExp> = {}) {
+        for (const category of Object.values(this.CODED_EVENTS)) {
+            for (const event of Object.values(category)) {
+                const matcher = labelMatchers[event.code]
+                if (matcher && matcher.test(label)) {
+                    return event
+                } else if (event.name.toLowerCase() === label.toLowerCase()) {
+                    return event
+                }
+            }
+        }
+        return null
+    }
     scope: string
     start: number
     duration: number
