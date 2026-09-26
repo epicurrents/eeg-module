@@ -1244,7 +1244,9 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
                 this.totalDuration = response
                 return true
             }
-            // There was an error when preparing the resource.
+            // There was an error when preparing the resource. The worker's own reason, where it gave
+            // one, is logged by the service; this names what reached the recording.
+            Log.error(`Setting up the EEG recording failed: the worker reported a length of ${response}.`, SCOPE)
             this._errorReason = 'Setting up resource failed'
             this.state = 'error'
             return false
