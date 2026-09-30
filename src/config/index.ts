@@ -63,6 +63,11 @@ const EegSettings: EegModuleSettings = {
         ],
     },
     defaultMontages: {
+        // Keyed by setup name; a setup absent from `defaultSetups` contributes nothing, so the 10-10
+        // entry costs a deployment that does not select the setup nothing.
+        'default:10-10': [
+            ['rec', 'As recorded'],
+        ] as [string, string][],
         'default:10-20': [
             ['rec', 'As recorded'],
             ['avg', 'Average reference'],
