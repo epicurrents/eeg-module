@@ -30,8 +30,8 @@ export type DivergingRamp = {
      *
      * The cost falls exactly on focality. A focal discharge really is near zero away from its maximum, so exaggerating
      * the mid range inflates its apparent spatial extent and blurs where it is. Reading spikes on clinical recordings
-     * is clearer at 1, which is what the interface ships; the lower values serve the diffuse case. Neither alters the
-     * underlying values, only how they are coloured.
+     * is clearer at 1, and the lower values serve the diffuse case. Neither alters the underlying values, only how
+     * they are coloured.
      */
     gamma: number
 }
@@ -135,6 +135,10 @@ export interface EegSurfaceFieldMapInterface {
     electrodes: Float32Array
     /** Name of the montage this map was baked for. */
     montage: string
+    /** Number of channels the mapping matrix expects, i.e. the length of `channels`. */
+    nChannels: number
+    /** Number of surface vertices, i.e. the length `interpolate` writes and a third of `vertices`. */
+    nVertices: number
     /** Flat xyz vertex normals. */
     normals: Float32Array
     /** Sphere origin the map was baked around; hand the same one to a `EegTopogram` of the same montage. */
@@ -179,6 +183,8 @@ export interface EegSurfaceFieldMapInterface {
 export interface EegTopogramInterface {
     /** True for grid pixels inside the head circle. */
     mask: Uint8Array
+    /** Number of electrodes the operator was built for, i.e. the length of `positions`. */
+    nChannels: number
     /** Center of the fitted head sphere, in head coordinates. */
     origin: Point3D
     /** Electrode positions in head coordinates, in the order values are supplied. */

@@ -1,3 +1,10 @@
+/**
+ * Epicurrents EEG module types.
+ * @package    epicurrents/eeg-module
+ * @copyright  2023 Sampsa Lohi
+ * @license    Apache-2.0
+ */
+
 import type {
     BiosignalAnnotationEvent,
     BiosignalChannel,
@@ -10,9 +17,21 @@ import type {
     ConfigBiosignalSetup,
     ConfigMapChannels,
     SourceChannel,
+    UrlAccessOptions,
     VideoAttachment,
 } from '@epicurrents/core/types'
-
+import { type EegModuleSettings, type TrendDerivation } from './config'
+import type {
+    DivergingRamp,
+    EegSurfaceFieldMapInterface,
+    EegTopogramInterface,
+    EncodedFieldMap,
+    FieldMapChannelMatch,
+    Isoline2D,
+    Isoline3D,
+    Point3D,
+    Rgb,
+} from './topography'
 /**
  * Properties expected of an EEG file header signal.
  */
@@ -76,7 +95,7 @@ export interface EegResource extends BiosignalResource {
      * @param channels - Raw source channels to create the setup for (defaults to existing recording channels).
      * @returns The created setup.
      */
-    addSetup (config?: ConfigBiosignalSetup, channels?: BiosignalChannel[]): BiosignalSetup
+    addSetup (config: ConfigBiosignalSetup, channels?: BiosignalChannel[]): BiosignalSetup
     /**
      * Prepare the resource for display without activating it, so that switching to it later is
      * immediate: allocate its buffer, build its montages and fill its signal cache.
@@ -96,30 +115,18 @@ export interface EegResource extends BiosignalResource {
     preload (): Promise<boolean>
     /**
      * Prepare the worker for processing signals.
+     * @param options - Access options for a source that needs them, such as an authorization header for a URL.
      * @returns Promise that resolves with true if the worker was prepared successfully.
      */
-    prepare (): Promise<boolean>
+    prepare (options?: UrlAccessOptions): Promise<boolean>
 }
 
-export type EegResourceEvent = BiosignalAnnotationEvent & {
-}
+/** An annotation event on an EEG resource. The modality adds no members of its own to the base event. */
+export type EegResourceEvent = BiosignalAnnotationEvent
 
 export type EegStudyProperties = BiosignalStudyProperties & {
     videos?: VideoAttachment[]
 }
-
-import { type EegModuleSettings, type TrendDerivation } from './config'
-import type {
-    DivergingRamp,
-    EegSurfaceFieldMapInterface,
-    EegTopogramInterface,
-    EncodedFieldMap,
-    FieldMapChannelMatch,
-    Isoline2D,
-    Isoline3D,
-    Point3D,
-    Rgb,
-} from './topography'
 
 export {
     DivergingRamp,
