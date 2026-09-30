@@ -1,6 +1,10 @@
+import { describe, expect, test } from 'vitest'
 import EegCascadeMontage from '../src/components/EegCascadeMontage'
 
-const fakeSetup = (channels: Array<{ name: string, label: string, index: number, modality?: string, samplingRate?: number, unit?: string }>) => ({
+type FakeChannel = {
+    name: string, label: string, index: number, modality?: string, samplingRate?: number, unit?: string
+}
+const fakeSetup = (channels: Array<FakeChannel>) => ({
     channels,
 })
 

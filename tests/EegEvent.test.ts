@@ -5,6 +5,7 @@
  * @license    Apache-2.0
  */
 
+import { describe, expect, test } from 'vitest'
 import EegEvent from '../src/components/EegEvent'
 import vocabulary from '../src/components/vocabulary/eeg-events.json'
 
@@ -30,7 +31,9 @@ describe('EegEvent', () => {
     })
 
     test('lists the shared categories before its own', () => {
-        expect(Object.keys(EegEvent.CODED_EVENTS)).toEqual(['TECHNICAL', 'INTERVENTION', 'OBSERVATION', 'ENVIRONMENT', 'PHYSIOLOGY', ...CATEGORIES])
+        expect(Object.keys(EegEvent.CODED_EVENTS)).toEqual([
+            'TECHNICAL', 'INTERVENTION', 'OBSERVATION', 'ENVIRONMENT', 'PHYSIOLOGY', ...CATEGORIES,
+        ])
     })
 
     test('finds a shared acquisition term through the EEG class', () => {
@@ -68,6 +71,50 @@ describe('EegEvent', () => {
         const e = EegEvent.fromTemplate(tpl)
         expect(e).toBeInstanceOf(EegEvent)
         expect(e.start).toBe(1)
+    })
+})
+
+describe('EegEvent.fromTemplate', () => {
+    // The annotation constructors read an absent option as a request for the default, so a template
+    // field that can legitimately be falsy has to survive the copy as itself.
+    const template = (fields: Record<string, unknown> = {}) =>
+        ({ start: 1, duration: 2, label: 'test', ...fields } as never)
+
+    test('a template marked hidden produces a hidden event', () => {
+        expect(EegEvent.fromTemplate(template({ visible: false })).visible).toBe(false)
+        expect(EegEvent.fromTemplate(template({ visible: true })).visible).toBe(true)
+        expect(EegEvent.fromTemplate(template()).visible).toBe(true)
+    })
+
+    test('a fully transparent event keeps its opacity', () => {
+        // Opacity is assigned unguarded, so an absent one reaches the renderer as undefined and is
+        // drawn at whatever the renderer defaults to — which for a zero means fully opaque.
+        expect(EegEvent.fromTemplate(template({ opacity: 0 })).opacity).toBe(0)
+        expect(EegEvent.fromTemplate(template({ opacity: 0.5 })).opacity).toBe(0.5)
+        expect(EegEvent.fromTemplate(template()).opacity).toBeUndefined()
+    })
+
+    test('the remaining falsy-capable fields arrive as themselves', () => {
+        // These three share their own default, so a dropped value resolves back to it and they cannot
+        // distinguish the two operators; `visible` and `opacity` above are the ones that can. They are
+        // copied the same way, which is why the whole set was changed together.
+        const event = EegEvent.fromTemplate(template({ background: false, locked: false, priority: 0 }))
+        expect(event.background).toBe(false)
+        expect(event.locked).toBe(false)
+        expect(event.priority).toBe(0)
+    })
+
+    test('a named channel list is carried across, and an absent one means every channel', () => {
+        // The constructor normalises an absent list to an empty one, and an empty list is what the
+        // renderer reads as "applies to every channel" — so the two are the same statement and the
+        // copy only has to preserve a list that names channels.
+        expect(EegEvent.fromTemplate(template({ channels: ['C3', 'P3'] })).channels).toEqual(['C3', 'P3'])
+        expect(EegEvent.fromTemplate(template({ channels: [] })).channels).toEqual([])
+        expect(EegEvent.fromTemplate(template()).channels).toEqual([])
+    })
+
+    test('the label falls back to the template value when no label is given', () => {
+        expect(EegEvent.fromTemplate(template({ label: undefined, value: 'spike' })).label).toBe('spike')
     })
 })
 

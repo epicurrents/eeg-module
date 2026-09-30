@@ -1,3 +1,4 @@
+import { describe, expect, it, test } from 'vitest'
 import EegSurfaceFieldMap from '../src/topography/EegSurfaceFieldMap'
 import EegTopogram from '../src/topography/EegTopogram'
 import { getElectrodePosition, resolveMontageElectrodes } from '../src/topography/electrodes'
@@ -9,6 +10,9 @@ const LEGACY = LABELS.map(
 
 const match = EegSurfaceFieldMap.forLabels(LABELS)!
 const map = match.map
+// The match type declares `electrodeAnchors` optional so a consumer built against a newer version of
+// this package still runs against an older build of it. Every map this package ships has them.
+const anchors = map.electrodeAnchors!
 
 /** One frame with a single channel deflected, in baked channel order. */
 const oneHot = (label: string) => {
@@ -136,7 +140,7 @@ describe('EegSurfaceFieldMap', () => {
                 buriedBefore++
             }
             // No anchor may be more than a fraction of a millimetre under the surface.
-            expect(depthOf(map.electrodeAnchors, e)).toBeGreaterThan(-0.001)
+            expect(depthOf(anchors, e)).toBeGreaterThan(-0.001)
         }
         // The projection has to be doing real work, or this test would pass on the raw positions.
         expect(buriedBefore).toBeGreaterThan(3)
@@ -153,7 +157,7 @@ describe('EegSurfaceFieldMap', () => {
                 const length = Math.hypot(x, y, z)
                 return [x/length, y/length, z/length]
             }
-            const [ax, ay, az] = direction(map.electrodeAnchors)
+            const [ax, ay, az] = direction(anchors)
             const [bx, by, bz] = direction(map.electrodes)
             expect(ax*bx + ay*by + az*bz).toBeCloseTo(1, 6)
         }

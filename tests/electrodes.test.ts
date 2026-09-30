@@ -1,3 +1,4 @@
+import { describe, expect, test } from 'vitest'
 import { getElectrodePosition, resolveMontageElectrodes } from '../src/topography/electrodes'
 
 describe('electrodes', () => {
@@ -54,7 +55,7 @@ describe('electrodes', () => {
 
     test('covers every electrode of the bundled 10-10 setup', () => {
         // Nz is the nasion, a fiducial rather than an electrode, so it is correctly absent.
-        const setup = ('Fp1,Fp2,Af3,Af4,Af7,Af8,F1,F2,F3,F4,F5,F6,F7,F8,F9,F10,FC1,FC2,FC3,FC4,FC5,FC6,'
+        const setup = ('Fp1,Fp2,AF3,AF4,AF7,AF8,F1,F2,F3,F4,F5,F6,F7,F8,F9,F10,FC1,FC2,FC3,FC4,FC5,FC6,'
                      + 'FC7,FC8,FT9,FT10,C1,C2,C3,C4,C5,C6,T7,T8,T9,T10,A1,A2,CP1,CP2,CP3,CP4,CP5,CP6,'
                      + 'TP7,TP8,TP9,TP10,P1,P2,P3,P4,P5,P6,P7,P8,P9,P10,PO3,PO4,PO7,PO8,O1,O2,Fpz,Fz,'
                      + 'FCz,Cz,CPz,Pz,POz,Oz,Iz').split(',')

@@ -1,3 +1,4 @@
+import { describe, expect, test } from 'vitest'
 import EegTopogram from '../src/topography/EegTopogram'
 import { resolveMontageElectrodes } from '../src/topography/electrodes'
 

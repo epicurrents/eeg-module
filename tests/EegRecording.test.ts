@@ -3,6 +3,7 @@
  * @package    @epicurrents/eeg-module
  */
 
+import { beforeEach, describe, expect, it, test, vi } from 'vitest'
 import EegRecording from '../src/EegRecording'
 
 // `window.__EPICURRENTS__.RUNTIME.SETTINGS.modules.eeg` is read in EegRecording's
@@ -32,7 +33,10 @@ import EegRecording from '../src/EegRecording'
 describe('EegRecording', () => {
     test('addSetup returns created setup and duplicate call returns existing (or errors if bug present)', () => {
         const header: any = { recordingStartTime: 0, dataUnitCount: 10, dataUnitDuration: 1 }
-        const channels: any[] = [{ name: 'C3', label: 'C3', modality: 'eeg', averaged: false, samplingRate: 256, unit: 'uV', visible: true, sampleCount: 100 }]
+        const channels: any[] = [{
+            name: 'C3', label: 'C3', modality: 'eeg', averaged: false,
+            samplingRate: 256, unit: 'uV', visible: true, sampleCount: 100,
+        }]
         // fake worker
         const worker: any = { addEventListener: () => {} }
         const rec = new EegRecording('r', channels, header, worker)
@@ -283,7 +287,7 @@ describe('EegRecording', () => {
 
                 // Phase = 'before': _isActive is still false. Handler must return.
                 ;(rec as any)._isActive = false
-                await activateCb!.call(rec)
+                activateCb!.call(rec)
                 expect(dispatchSpy).not.toHaveBeenCalled()
 
                 // Phase = 'after': _isActive is now true, and the inner setup
@@ -303,8 +307,39 @@ describe('EegRecording', () => {
                 // minimum the handler reads so the dispatch site doesn't NPE
                 // before we observe the spy.
                 ;(EegRecording as any).EVENTS = (EegRecording as any).EVENTS ?? { INITIAL_SETUP: 'initial-setup' }
-                await activateCb!.call(rec).catch(() => { /* swallow any downstream errors */ })
+                // The listener slot is synchronous, so the handler returns nothing and has to carry
+                // its own rejection handling; a throw from the setup must not escape it.
+                expect(activateCb!.call(rec)).toBeUndefined()
                 expect(dispatchSpy).toHaveBeenCalled()
+            })
+
+            it('swallows and logs a rejection from the setup rather than letting it escape', async () => {
+                const captured: Record<string, (...args: unknown[]) => unknown> = {}
+                const { GenericBiosignalResource } = await import('@epicurrents/core' as any)
+                const addSpy = vi.spyOn(GenericBiosignalResource.prototype, 'addEventListener')
+                    .mockImplementation(function (this: unknown, ev: unknown, cb: unknown) {
+                        if (typeof ev === 'string') {
+                            captured[ev] = cb as (...args: unknown[]) => unknown
+                        }
+                    })
+                const rec = new EegRecording('r', makeChannels(), makeHeader(), makeWorker())
+                addSpy.mockRestore()
+
+                ;(rec as any)._isActive = true
+                const failure = new Error('setup blew up')
+                const completeSpy = vi.spyOn(rec as any, '_completeSetup')
+                    .mockImplementation(() => Promise.reject(failure))
+                const { Log } = await import('scoped-event-log')
+                const logSpy = vi.spyOn(Log, 'error').mockImplementation(() => undefined as never)
+
+                // Nothing is returned for the caller to attach a handler to, so an uncaught
+                // rejection here would surface as an unhandled one with the recording half set up.
+                expect(captured['activate']!.call(rec)).toBeUndefined()
+                expect(completeSpy).toHaveBeenCalled()
+                await Promise.resolve()
+                await Promise.resolve()
+                expect(logSpy).toHaveBeenCalled()
+                expect(logSpy.mock.calls[0][2]).toBe(failure)
             })
         })
     })

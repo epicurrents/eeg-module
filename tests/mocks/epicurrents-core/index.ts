@@ -4,7 +4,8 @@
 import { codedEventsFromVocabulary, mergeCodedEvents } from '../../../../core/src/assets/annotation/vocabulary'
 import biosignalVocabulary from '../../../../core/src/assets/annotation/vocabulary/biosignal-events.json'
 
-/** The shared acquisition set, loaded from the core checkout beside this package so an EEG test sees the real merged view. */
+/** The shared acquisition set, loaded from the core checkout beside this package, so an EEG test
+ *  sees the real merged view. */
 const BIOSIGNAL_CODED_EVENTS = codedEventsFromVocabulary(biosignalVocabulary as any)
 
 export { codedEventsFromVocabulary, mergeCodedEvents }
@@ -76,12 +77,39 @@ export class GenericBiosignalEvent {
     duration: number
     label: string
     options: any
+    // Resolved with the real base class's defaults. The two that matter are `visible`, which means
+    // visible when absent, and `opacity`, which is assigned unguarded and so reaches the renderer as
+    // undefined — passing undefined for a `false` or a `0` is not a no-op in either case.
+    annotator: string
+    background: boolean
+    channels: (number | string)[]
+    class: string
+    codes: Record<string, number | string>
+    color: number[] | undefined
+    locked: boolean
+    opacity: number | undefined
+    priority: number
+    text: string
+    type: string | undefined
+    visible: boolean
     constructor(scope: string, start: number, duration: number, label: string, options?: any) {
         this.scope = scope
         this.start = start
         this.duration = duration
         this.label = label
         this.options = options
+        this.annotator = options?.annotator ?? ''
+        this.background = options?.background ?? false
+        this.channels = options?.channels ?? []
+        this.class = options?.class ?? 'event'
+        this.codes = options?.codes ?? {}
+        this.color = options?.color
+        this.locked = options?.locked ?? false
+        this.opacity = options?.opacity
+        this.priority = options?.priority ?? 0
+        this.text = options?.text ?? ''
+        this.type = options?.type
+        this.visible = options?.visible ?? true
     }
     static labelFromTemplate(template: any): string {
         if (template.label) {
@@ -98,10 +126,27 @@ export class ResourceLabel {
     scope: string
     value: any
     options: any
+    // Same defaults as `GenericBiosignalEvent` above, for the same reason.
+    annotator: string
+    class: string
+    codes: Record<string, number | string>
+    label: string | undefined
+    locked: boolean
+    priority: number
+    text: string
+    visible: boolean
     constructor(scope: string, value: any, options?: any) {
         this.scope = scope
         this.value = value
         this.options = options
+        this.annotator = options?.annotator ?? ''
+        this.class = options?.class ?? 'event'
+        this.codes = options?.codes ?? {}
+        this.label = options?.label
+        this.locked = options?.locked ?? false
+        this.priority = options?.priority ?? 0
+        this.text = options?.text ?? ''
+        this.visible = options?.visible ?? true
     }
 }
 
@@ -123,7 +168,13 @@ export class GenericBiosignalMontage {
     }
     setInterruptions() {}
     get isActive() { return this._isActive }
-    set isActive(v: boolean) { this._isActive = v }
+    // Dispatches the primitive activation events as the real asset base does, so a caller that must
+    // not deactivate an already-inactive resource can be told apart from one that does.
+    set isActive(v: boolean) {
+        this.dispatchEvent(v ? AssetEvents.ACTIVATE : AssetEvents.DEACTIVATE, 'before')
+        this._isActive = v
+        this.dispatchEvent(v ? AssetEvents.ACTIVATE : AssetEvents.DEACTIVATE, 'after')
+    }
     getMainProperties() { return new Map() }
     async getAllSignals(_range: number[], _config?: any): Promise<any> { return null }
     async releaseBuffers() { return Promise.resolve() }
@@ -226,7 +277,11 @@ export class GenericMontageChannel {
     unit: string
     visible: boolean
     extra: any
-    constructor(montage: any, name: string, label: string, modality: string, active: any, reference: any, averaged: boolean, samplingRate: number, unit: string, visible: boolean, extraProperties: any = {}) {
+    constructor(
+        montage: any, name: string, label: string, modality: string, active: any, reference: any,
+        averaged: boolean, samplingRate: number, unit: string, visible: boolean,
+        extraProperties: any = {}
+    ) {
         this.montage = montage
         this.name = name
         this.label = label
@@ -262,7 +317,11 @@ export class GenericSourceChannel {
     unit: string
     visible: boolean
     _laterality: string | undefined
-    constructor(name: string, label: string, modality: string, index: number, averaged: boolean, samplingRate: number, unit: string, visible: boolean, extraProperties: any = {}) {
+    sampleCount: number = 0
+    constructor(
+        name: string, label: string, modality: string, index: number, averaged: boolean,
+        samplingRate: number, unit: string, visible: boolean, extraProperties: any = {}
+    ) {
         this.name = name
         this.label = label
         this.modality = modality
@@ -271,9 +330,23 @@ export class GenericSourceChannel {
         this.samplingRate = samplingRate
         this.unit = unit
         this.visible = visible
-        this._laterality = undefined
+        // Taken from the extra properties as the real base takes it: a setup that states a channel's
+        // side is what the EEG subclass's own derivation defers to.
+        this._laterality = extraProperties.laterality || ''
+        this.sampleCount = extraProperties.sampleCount ?? 0
     }
     addEventListener(_ev: any, _cb: any, _id?: any) { }
+}
+
+/** The shape test the real resource uses to tell a property-change context from a first annotation. */
+function _isPropertyChangeContext (value: unknown) {
+    if (value === null) {
+        return true
+    }
+    if (typeof value !== 'object') {
+        return false
+    }
+    return 'source' in value || 'callback' in value || 'event' in value
 }
 
 export class GenericBiosignalResource {
@@ -302,10 +375,43 @@ export class GenericBiosignalResource {
     maxSampleCount: number = 0
     maxSamplingRate: number = 0
     _setup: any = null
+    _setups: any[] = []
+    _signalCacheStatus: number[] = [0, 0]
+    _trends: Map<string, any> = new Map()
+    _trustedInterruptions: any = null
+    _isPreloading = false
+    _samplingRate: number | null = null
     constructor(name: string, modality: string) {
         this.name = name
         this.modality = modality
     }
+    get dataDuration() { return this._dataDuration }
+    get setup() { return this._setup }
+    set setup(value: any) { this._setup = value }
+    get signalCacheStatus() { return this._signalCacheStatus }
+    set signalCacheStatus(value: number[]) { this._signalCacheStatus = value }
+    get totalDuration() { return this._totalDuration }
+    set totalDuration(value: number) { this._totalDuration = value }
+    get trends() { return Object.fromEntries(this._trends) }
+    // A name collision is refused rather than overwritten, which is what the EEG builders rely on to
+    // stay idempotent across repeated setup passes.
+    addTrend(trend: any) {
+        if (this._trends.has(trend.name)) {
+            return false
+        }
+        this._trends.set(trend.name, trend)
+        return true
+    }
+    getTrend(name: string) { return this._trends.get(name) ?? null }
+    removeTrend(name: string) {
+        const trend = this._trends.get(name)
+        if (!trend) {
+            return false
+        }
+        trend.cancelTrendComputation()
+        return this._trends.delete(name)
+    }
+    _derivationCacheSlots(): any[] { return [] }
     addEventListener(_ev: any, _cb: any, _id?: any) { }
     dispatchEvent(_ev: any, _phase?: any) { }
     dispatchPropertyChangeEvent(_prop: string, _value: any, _old: any, _phase?: any) { }
@@ -324,12 +430,25 @@ export class GenericBiosignalResource {
     setMemoryManager(mgr: any) { this._memoryManager = mgr }
     get events() { return this._events }
     set events(e: any[]) { this._events = e }
-    addEvents(...events: any[]) { this._events.push(...events) }
-    addLabels(...labels: any[]) { this._labels.push(...labels) }
+    // Both overloads of the real methods take an optional leading property-change context, detected
+    // by shape. A stub that stored it alongside the annotations would put it in `_events`, where a
+    // test reading the stored annotations back would find one it did not add.
+    addEvents(contextOrFirst: any, ...rest: any[]) {
+        this._events.push(...(_isPropertyChangeContext(contextOrFirst) ? rest : [contextOrFirst, ...rest]))
+    }
+    addLabels(contextOrFirst: any, ...rest: any[]) {
+        this._labels.push(...(_isPropertyChangeContext(contextOrFirst) ? rest : [contextOrFirst, ...rest]))
+    }
     async releaseBuffers(): Promise<boolean> { return true }
     async unload() { return Promise.resolve() }
     get isActive() { return this._isActive }
-    set isActive(v: boolean) { this._isActive = v }
+    // Dispatches the primitive activation events as the real asset base does, so a caller that must
+    // not deactivate an already-inactive resource can be told apart from one that does.
+    set isActive(v: boolean) {
+        this.dispatchEvent(v ? AssetEvents.ACTIVATE : AssetEvents.DEACTIVATE, 'before')
+        this._isActive = v
+        this.dispatchEvent(v ? AssetEvents.ACTIVATE : AssetEvents.DEACTIVATE, 'after')
+    }
     getMainProperties() { return new Map() }
 }
 
@@ -368,6 +487,14 @@ export class BiosignalStudyLoader {
         this._modalities = modalities
         this._importer = importer
     }
+    // All three entry points return the study handed to them, so a subclass override can be tested
+    // for what it does to the study rather than for how the base finds one.
+    async loadFromDirectory(_dir: any, _config?: any) {
+        return this._study
+    }
+    async loadFromFile(_file: any, _config?: any, preStudy?: any) {
+        return preStudy || null
+    }
     async loadFromUrl(_fileUrl: string, _config?: any, preStudy?: any) {
         return preStudy || null
     }
@@ -380,16 +507,63 @@ export const BiosignalMutex = {
     SIGNAL_DATA_POS: 4
 }
 
-// Minimal stub for the trend asset hierarchy. EegTrend extends this; tests
-// don't exercise trend math, but the constructor must not throw.
+// Stub of the trend asset hierarchy. The trend math is not exercised here, but the registration
+// behaviour is: the base registers with its service from the constructor only when the derivation
+// already names source channels, and a subclass that resolves its derivation afterwards has to
+// register itself. The eeg-module subclasses depend on exactly that split.
 export class GenericBiosignalTrend {
-    name: string = ''
-    derivation: any = null
-    epochLength: number = 0
-    samplingRate: number = 0
+    protected _band: [number, number] | undefined = undefined
+    protected _denominatorBand: [number, number] | undefined = undefined
+    protected _derivation: any
+    protected _epochLength = 0
+    protected _frequencyBins: number | undefined = undefined
+    protected _label = ''
+    protected _maxFreqHz: number | undefined = undefined
+    protected _name = ''
+    protected _numeratorBand: [number, number] | undefined = undefined
+    protected _samplingRate = 0
+    protected _service: any = null
+    computedUpToSec = 0
     signal: any[] = []
-    constructor (..._args: any[]) {}
-    setupTrend (..._args: any[]) {}
+
+    constructor (name: string, label: string, derivation: any, service: any, options: any = {}) {
+        this._name = name
+        this._label = label
+        this._derivation = derivation
+        this._epochLength = options.epochLength ?? 0
+        this._samplingRate = options.samplingRate ?? 0
+        this._service = service
+        if (service && derivation?.sourceChannels?.length) {
+            this._registerWithService()
+        }
+    }
+
+    get derivation () { return this._derivation }
+    get epochLength () { return this._epochLength }
+    get frequencyBins () { return this._frequencyBins }
+    get label () { return this._label }
+    get name () { return this._name }
+    get samplingRate () { return this._samplingRate }
+
+    protected _registerWithService () {
+        void this._service.setupTrend(
+            this._name,
+            this._derivation,
+            this._samplingRate,
+            this._epochLength,
+            {
+                maxFreqHz: this._maxFreqHz,
+                numeratorBand: this._numeratorBand,
+                denominatorBand: this._denominatorBand,
+                band: this._band,
+            },
+        )
+    }
+
+    // Inherited from the asset base in core; the recording subscribes to 'trend-complete' on every
+    // trend it registers and cancels a trend it is replacing.
+    addEventListener (_ev: any, _cb: any, _id?: any) {}
+    cancelTrendComputation () {}
     async computeTrend (..._args: any[]) { return Promise.resolve() }
 }
 

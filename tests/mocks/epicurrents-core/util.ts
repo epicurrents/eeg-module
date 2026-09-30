@@ -11,3 +11,20 @@ export function mapMontageChannels(setup: any, config: any) {
     return []
 }
 export function objectToReadOnly(obj: any) { return obj }
+
+/**
+ * Stub of the epoch-length resolver. Only the contract the trend builders branch on is modelled — a
+ * configured length, or 0 when none can be derived; the scaling ladder itself belongs to core and is
+ * tested there.
+ */
+export function resolveTrendEpochLength (
+    _recordingDuration: number,
+    config: { epochLength?: number } | undefined | null
+) {
+    return config?.epochLength && config.epochLength > 0 ? config.epochLength : 0
+}
+
+/** A null-prototype object, as core's own helper builds one. */
+export function safeObjectFrom (template: object) {
+    return Object.assign(Object.create(null), template)
+}

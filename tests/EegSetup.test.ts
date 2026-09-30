@@ -1,3 +1,4 @@
+import { describe, expect, test } from 'vitest'
 import EegSetup from '../src/components/EegSetup'
 
 describe('EegSetup', () => {

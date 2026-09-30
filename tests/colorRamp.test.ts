@@ -1,3 +1,4 @@
+import { describe, expect, test } from 'vitest'
 import {
     DEFAULT_DIVERGING_RAMP,
     rampFromHex,
@@ -11,7 +12,7 @@ describe('colorRamp', () => {
             [0, DEFAULT_DIVERGING_RAMP.neutral],
             [1, DEFAULT_DIVERGING_RAMP.positive],
             [-1, DEFAULT_DIVERGING_RAMP.negative],
-        ] as [number, number[]][]) {
+        ] as [number, readonly number[]][]) {
             sampleRamp(value).forEach((component, i) => expect(component).toBeCloseTo(expected[i], 6))
         }
     })
