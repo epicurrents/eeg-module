@@ -47,18 +47,18 @@ export default class EegEvent extends GenericBiosignalEvent implements EegResour
         return new EegEvent(
             tpl.start, tpl.duration, GenericBiosignalEvent.labelFromTemplate(tpl),
             {
-                annotator: tpl.annotator || undefined,
-                background: tpl.background || undefined,
-                channels: tpl.channels || undefined,
-                class: tpl.class || undefined,
-                color: tpl.color as SettingsColor || undefined,
-                codes: tpl.codes || undefined,
-                label: tpl.label || undefined,
-                locked: tpl.locked || undefined,
-                opacity: tpl.opacity || undefined,
-                priority: tpl.priority || undefined,
-                text: tpl.text || undefined,
-                visible: tpl.visible || undefined,
+                annotator: tpl.annotator ?? undefined,
+                background: tpl.background ?? undefined,
+                channels: tpl.channels ?? undefined,
+                class: tpl.class ?? undefined,
+                color: (tpl.color as SettingsColor) ?? undefined,
+                codes: tpl.codes ?? undefined,
+                label: tpl.label ?? undefined,
+                locked: tpl.locked ?? undefined,
+                opacity: tpl.opacity ?? undefined,
+                priority: tpl.priority ?? undefined,
+                text: tpl.text ?? undefined,
+                visible: tpl.visible ?? undefined,
             }
         )
     }
