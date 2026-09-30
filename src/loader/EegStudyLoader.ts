@@ -18,7 +18,6 @@ import type {
 } from '@epicurrents/core/types'
 import EegRecording from '../EegRecording'
 import type { EegResource } from '../types'
-//import EegRecording from '../EegRecording'
 import Log from 'scoped-event-log'
 
 const SCOPE = 'EegStudyLoader'
@@ -72,8 +71,11 @@ export default class EegStudyLoader extends BiosignalStudyLoader {
         // even that minimum doesn't fit does this become a hard failure.
         let totalSamples = 0
         if (!window.__EPICURRENTS__?.RUNTIME) {
-            // For TypeScript really.
+            // The budget cannot be checked without the app settings, and a recording handed back in
+            // its constructed state would be opened as though it had passed. Refuse it instead.
             Log.error(`Reference to main application runtime was not found!`, SCOPE)
+            recording.errorReason = `Application runtime not available.`
+            recording.state = 'error'
         } else {
             const appSettings = window.__EPICURRENTS__.RUNTIME.SETTINGS.app
             const blockDurationCap = appSettings.dataBlockDuration ?? 3600
@@ -165,7 +167,7 @@ export default class EegStudyLoader extends BiosignalStudyLoader {
     public async loadFromFile (
         file: File,
         config?: ConfigStudyLoader,
-        preStudy?: StudyContext | undefined
+        preStudy?: StudyContext
     ): Promise<StudyContext | null> {
         return this._claimAsEeg(await super.loadFromFile(file, config, preStudy))
     }
@@ -173,7 +175,7 @@ export default class EegStudyLoader extends BiosignalStudyLoader {
     public async loadFromUrl (
         fileUrl: string,
         config?: ConfigStudyLoader,
-        preStudy?: StudyContext | undefined
+        preStudy?: StudyContext
     ): Promise<StudyContext | null> {
         return this._claimAsEeg(await super.loadFromUrl(fileUrl, config, preStudy))
     }
