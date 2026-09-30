@@ -1,33 +1,26 @@
 {
+  /*
+   * Type-check the test suite against the real `@epicurrents/core` types.
+   *
+   * Deliberately no `paths` entry for the mocks: the runtime substitution happens in vitest.config.ts,
+   * and pointing the types at the mocks too would let a test assert against a property only the mock
+   * has, which verifies nothing about the class the package ships. `tests/mocks` is excluded for the
+   * same reason — the stubs stand in for core at runtime and are not expected to satisfy its types.
+   */
   "extends": "./tsconfig.json",
   "compilerOptions": {
-    /* Override settings for Jest tests */
-    "target": "es2020",
-    "module": "esnext",                       /* ESM for Vitest */
-    "esModuleInterop": true,
-    "allowSyntheticDefaultImports": true,
-    "declaration": false,                     /* No need for .d.ts files in tests */
-    "noUnusedLocals": false,                  /* Allow unused variables in tests */
-    "noUnusedParameters": false,              /* Allow unused parameters in tests */
-    "noImplicitReturns": false,               /* More lenient for test code */
-    "sourceMap": true,                        /* Enable source maps for debugging */
-    "types": ["vitest/globals", "node"],       /* Vitest globals and Node type definitions */
+    "rootDir": ".",
+    "noEmit": true,
+    "declaration": false,             /* No .d.ts files for tests. */
+    "noUnusedLocals": false,          /* A fixture may be built and not used in every case. */
+    "noUnusedParameters": false,
+    "types": ["node"],                /* Vitest's helpers are imported explicitly, not as globals. */
+    "typeRoots": ["../../node_modules/@types", "./node_modules/@types"],
     "paths": {
-      "@epicurrents/core": ["tests/mocks/epicurrents-core/index.ts"],
-      "@epicurrents/core/*": ["tests/mocks/epicurrents-core/*"],
-      "scoped-event-log": ["tests/mocks/scoped-event-log.ts"],
       "#*": ["src/*"],
-      "#types": ["tests/mocks/epicurrents-core/types.ts"]
+      "#root/*": ["./*"]
     }
-    ,
-    "noImplicitAny": false
   },
-  "include": [
-    "./tests/**/*",
-    "./src/**/*"
-  ],
-  "exclude": [
-    "node_modules",
-    "dist"
-  ]
+  "include": ["./tests/**/*", "./src/**/*"],
+  "exclude": ["node_modules", "dist", "tests/mocks"]
 }

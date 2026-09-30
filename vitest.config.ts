@@ -25,6 +25,9 @@ export default defineConfig({
         coverage: {
             provider: 'v8',
             reportsDirectory: 'tests/coverage',
+            // The core mocks are test scaffolding, not this package's code; counted as source they
+            // report a coverage figure that does not describe what the package ships.
+            exclude: ['tests/**'],
         },
     },
 })
