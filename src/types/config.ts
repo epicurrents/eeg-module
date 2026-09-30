@@ -69,8 +69,8 @@ export type EegModuleSettings = BaseModuleSettings & CommonBiosignalSettings & {
      * pdBSI (pairwise derived Brain Symmetry Index) setup. Carries the homologous L/R
      * electrode pair list — EEG-specific because the pair names follow 10-20 electrode
      * conventions. Math knobs live in {@link trends.pdbsi} (inherited from
-     * {@link CommonBiosignalSettings}); display-only knobs live in the interface
-     * module's `EegInterfaceSettings.trends.pdbsi`.
+     * {@link CommonBiosignalSettings}); display-only knobs belong to whichever
+     * layer draws the trend and are not part of this module's settings.
      */
     pdbsi?: {
         /**
@@ -106,8 +106,8 @@ export type EegModuleSettings = BaseModuleSettings & CommonBiosignalSettings & {
          *  - `'superimposed'`: all bands are drawn on the same vertical slot with reduced alpha,
          *    making left-vs-right comparison easier at the cost of some band overlap.
          *
-         * EegViewer forces `'superimposed'` automatically when the trend strip is compressed
-         * below the dual-slot height threshold (see EegViewer's `effectiveTrendDisplayMode`).
+         * A renderer is free to force `'superimposed'` when the strip is too short for one slot per
+         * band; the setting states the preference rather than the outcome.
          */
         displayMode: 'separate' | 'superimposed'
         /** Fraction of the navigator strip's height to use for the aEEG band (0.0–1.0). */

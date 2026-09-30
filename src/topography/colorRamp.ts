@@ -2,7 +2,7 @@
  * Shared diverging colour ramp for scalp field displays.
  *
  * Both the 2D topogram and the 3D surface field map must colour the same voltage the same way, so the ramp lives here
- * rather than being duplicated in each. Keeping it in one place also gives the interface a single object to bind user
+ * rather than being duplicated in each. Keeping it in one place also gives a consumer a single object to bind user
  * settings to.
  *
  * The ramp is diverging, not sequential: EEG potentials have a meaningful zero and a sign, so the midpoint is a neutral

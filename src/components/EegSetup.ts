@@ -7,9 +7,6 @@
 
 import { GenericBiosignalSetup } from '@epicurrents/core'
 import type { BiosignalChannel, ConfigBiosignalSetup } from '@epicurrents/core/types'
-//import Log from 'scoped-event-log'
-
-//const SCOPE = 'EegSetup'
 
 export default class EegSetup extends GenericBiosignalSetup {
 
@@ -17,7 +14,4 @@ export default class EegSetup extends GenericBiosignalSetup {
         super(config.name, channels, config)
     }
 
-    ///////////////////////////////////////////////////
-    //                   METHODS                     //
-    ///////////////////////////////////////////////////
 }

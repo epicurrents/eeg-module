@@ -1,3 +1,10 @@
+/**
+ * Epicurrents EEG components.
+ * @package    epicurrents/eeg-module
+ * @copyright  2023 Sampsa Lohi
+ * @license    Apache-2.0
+ */
+
 import EegAmplitudeIntegratedTrend from './EegAmplitudeIntegratedTrend'
 import EegCascadeMontage from './EegCascadeMontage'
 import EegFrequencyRatioTrend from './EegFrequencyRatioTrend'

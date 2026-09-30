@@ -187,7 +187,7 @@ export default class EegTopogram implements EegTopogramInterface {
      * panel is hidden would otherwise pay that cost repeatedly.
      * @param positions - Electrode positions in head coordinates.
      * @param resolution - Side length of the square output grid in pixels.
-     * @param origin - Center of the fitted head sphere; defaults to the centroid of `positions`.
+     * @param origin - Center of the head sphere; defaults to a least-squares fit through `positions`, or the anatomical default where they cannot determine one.
      */
     static forPositions (positions: Point3D[], resolution = 200, origin?: Point3D) {
         const key = JSON.stringify([
@@ -213,7 +213,7 @@ export default class EegTopogram implements EegTopogramInterface {
     /**
      * Contour levels used by both this class and `EegSurfaceFieldMap.isolines`, so a 2D topogram and a 3D field map
      * drawn from the same frame show the same isopotentials.
-     * @param limit - Outermost contour value.
+     * @param limit - End of the value scale. The levels divide it evenly and stop short of it, so the outermost contour sits at `limit * nLevels / (nLevels + 1)`.
      * @param nLevels - Number of levels either side of zero.
      */
     static levels (limit: number, nLevels: number) {

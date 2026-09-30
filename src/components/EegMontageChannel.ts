@@ -13,8 +13,6 @@ import type {
     MontageChannel,
 } from '@epicurrents/core/types'
 
-//const SCOPE = 'EegMontageChannel'
-
 export default class EegMontageChannel extends GenericMontageChannel implements MontageChannel {
 
     constructor (

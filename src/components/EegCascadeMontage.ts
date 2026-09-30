@@ -36,10 +36,6 @@ export default class EegCascadeMontage extends GenericBiosignalCascadeMontage {
         super(name, recording, setup, sourceLabel, rowCount, pageLength, manager, config)
     }
 
-    ///////////////////////////////////////////////////
-    //                   METHODS                     //
-    ///////////////////////////////////////////////////
-
     protected _createChannel (src: SetupChannel, rowIndex: number): MontageChannel {
         return new EegMontageChannel(
             this,

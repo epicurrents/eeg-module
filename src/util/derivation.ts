@@ -30,24 +30,6 @@ const findSourceIndex = (channels: SetupChannel[], name: string): number => {
 }
 
 /**
- * Try to resolve an aEEG derivation against the recording's setup channels. The function
- * attempts up to three strategies depending on whether a `reference` is supplied:
- *
- *  1. **Empty reference** (source-only): find the single named electrode in the setup —
- *     used for recordings where each source channel is already an electrode vs. the
- *     recording's common reference, or where the bipolar pair is stored as one channel.
- *  2. **Direct bipolar match**: a single source channel named like the pair (`'p3-p4'`).
- *  3. **Source / reference split**: two individual electrode channels (`'p3'` and `'p4'`).
- *     The subtraction is performed at trend-compute time; the shared reference cancels out.
- *
- * Returns null if no strategy resolves. The returned indices are raw EDF signal indices
- * (`SetupChannel.index`), suitable for direct use in `BiosignalTrendDerivation`.
- *
- * @param setup - Recording setup whose channels have already been matched against raw signals.
- * @param source - Source electrode name (`'C3'`, `'P3'`, `'c3-p3'`, …).
- * @param reference - Reference electrode name, or `''` for a single-channel derivation.
- */
-/**
  * Resolve a list of left/right electrode-name pairs into raw-signal `[leftIdx, rightIdx]`
  * tuples for use as `BiosignalTrendDerivation.pairs`. Pairs whose left or right electrode
  * cannot be matched in the setup are silently skipped. Returns null when none resolve.
@@ -71,6 +53,24 @@ export const resolvePdbsiPairs = (
     return resolved.length ? resolved : null
 }
 
+/**
+ * Try to resolve an aEEG derivation against the recording's setup channels. The function
+ * attempts up to three strategies depending on whether a `reference` is supplied:
+ *
+ *  1. **Empty reference** (source-only): find the single named electrode in the setup —
+ *     used for recordings where each source channel is already an electrode vs. the
+ *     recording's common reference, or where the bipolar pair is stored as one channel.
+ *  2. **Direct bipolar match**: a single source channel named like the pair (`'p3-p4'`).
+ *  3. **Source / reference split**: two individual electrode channels (`'p3'` and `'p4'`).
+ *     The subtraction is performed at trend-compute time; the shared reference cancels out.
+ *
+ * Returns null if no strategy resolves. The returned indices are raw EDF signal indices
+ * (`SetupChannel.index`), suitable for direct use in `BiosignalTrendDerivation`.
+ *
+ * @param setup - Recording setup whose channels have already been matched against raw signals.
+ * @param source - Source electrode name (`'C3'`, `'P3'`, `'c3-p3'`, …).
+ * @param reference - Reference electrode name, or `''` for a single-channel derivation.
+ */
 export const resolveAeegDerivation = (
     setup: BiosignalSetup,
     source: string,

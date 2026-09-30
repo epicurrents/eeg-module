@@ -20,7 +20,10 @@ export default class EegSpectrogramTrend extends EegTrend {
         options: {
             epochLength?: number
             samplingRate?: number
-            /** Number of frequency bins per epoch — computed from recordingSamplingRate × epochLength. */
+            /**
+             * Number of output frequency bins per epoch. One per Hz up to `maxFreqHz` keeps the
+             * signal layout independent of the epoch length.
+             */
             frequencyBins: number
             maxFreqHz?: number
         }

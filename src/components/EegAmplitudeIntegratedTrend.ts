@@ -12,8 +12,8 @@ import EegTrend from './EegTrend'
  * Amplitude-integrated EEG (aEEG) trend. Fixes the trend type to `'amplitude'` and
  * supplies NICU-standard defaults (5 s epochs, 2 / 15 Hz band-pass).
  *
- * Display properties such as band colour live in the interface's `eeg.trends.aeeg`
- * settings rather than on the trend object, keeping this class purely computational.
+ * Display properties such as band colour live in settings rather than on the trend object, which
+ * keeps this class purely computational.
  */
 export default class EegAmplitudeIntegratedTrend extends EegTrend {
     constructor (

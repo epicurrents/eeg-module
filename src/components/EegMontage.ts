@@ -35,10 +35,6 @@ export default class EegMontage extends GenericBiosignalMontage implements Biosi
         super(name, recording, setup, template, manager, config)
     }
 
-    ///////////////////////////////////////////////////
-    //                   METHODS                     //
-    ///////////////////////////////////////////////////
-
     mapChannels (config?: ConfigMapChannels) {
         if (!window.__EPICURRENTS__?.RUNTIME) {
             Log.error(`Reference to main application was not found!`, SCOPE)
