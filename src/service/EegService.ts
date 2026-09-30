@@ -13,18 +13,15 @@ import type {
     BiosignalResource,
     MemoryManager,
     SetupStudyResponse,
-    SignalCacheResponse,
     StudyContext,
     UrlAccessOptions,
     WorkerResponse,
 } from '@epicurrents/core/types'
 import { Log } from 'scoped-event-log'
 
-const SCOPE = "EegService"
+const SCOPE = 'EegService'
 
 export default class EegService extends GenericBiosignalService implements BiosignalDataService {
-    /** Resolved or rejected based on the success of data loading. */
-    protected _getSignals: Promise<SignalCacheResponse> | null = null
     protected _signalBufferStart = INDEX_NOT_ASSIGNED
 
     get signalBufferStart () {
@@ -39,7 +36,13 @@ export default class EegService extends GenericBiosignalService implements Biosi
 
     constructor (recording: BiosignalResource, worker: Worker, manager?: MemoryManager) {
         super(recording, worker, manager)
-        this._worker?.addEventListener('message', this.handleMessage.bind(this))
+        // The listener slot is synchronous while the handler is not, so the rejection has to be
+        // caught here; unhandled, a malformed worker message would be reported nowhere.
+        this._worker?.addEventListener('message', (message: MessageEvent) => {
+            this.handleMessage(message as WorkerResponse).catch((e: unknown) => {
+                Log.error(`Handling a worker message failed.`, SCOPE, e instanceof Error ? e : new Error(String(e)))
+            })
+        })
     }
 
     async handleMessage (message: WorkerResponse) {

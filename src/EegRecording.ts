@@ -49,8 +49,15 @@ import {
 import type { EegModuleSettings, EegResource, TrendDerivation } from './types'
 import Log from 'scoped-event-log'
 
-const SCOPE = "EegRecording"
+const SCOPE = 'EegRecording'
 
+/** Narrow the `unknown` of a rejection or a caught throw to what the logger's error slot takes. */
+const asError = (reason: unknown) => {
+    return reason instanceof Error ? reason : new Error(String(reason))
+}
+
+import DEFAULT_1010 from '#config/defaults/10-10/setup.json'
+import DEFAULT_1010_REC from '#config/defaults/10-10/montages/rec.json'
 import DEFAULT_1020 from '#config/defaults/10-20/setup.json'
 import DEFAULT_1020_AVG from '#config/defaults/10-20/montages/avg.json'
 import DEFAULT_1020_LON from '#config/defaults/10-20/montages/lon.json'
@@ -65,7 +72,10 @@ import EXTRA_1020_LAPLACIAN from '#config/extra/montages/10-20-laplacian.json'
  * EEG recording resource.
  */
 export default class EegRecording extends GenericBiosignalResource implements EegResource {
-    static readonly DEFAULT_MONTAGES = new Map<string, { setup: ConfigBiosignalSetup, montages: { [montage: string]: BiosignalMontageTemplate } }>([
+    static readonly DEFAULT_MONTAGES = new Map<string, {
+        setup: ConfigBiosignalSetup,
+        montages: { [montage: string]: BiosignalMontageTemplate },
+    }>([
         ['default:10-20', {
             setup: DEFAULT_1020 as ConfigBiosignalSetup,
             montages: {
@@ -73,6 +83,16 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
                 lon: DEFAULT_1020_LON as BiosignalMontageTemplate,
                 rec: DEFAULT_1020_REC as BiosignalMontageTemplate,
                 trv: DEFAULT_1020_TRV as BiosignalMontageTemplate,
+            }
+        }],
+        // The 10-10 array, for a recording whose montages reach past the 19 electrodes of the 10-20
+        // system. Registered but not in the shipped `defaultSetups`: a deployment that wants it names
+        // it there, and one that does not is not given 74 electrodes of channel matching it has no
+        // signals for.
+        ['default:10-10', {
+            setup: DEFAULT_1010 as ConfigBiosignalSetup,
+            montages: {
+                rec: DEFAULT_1010_REC as BiosignalMontageTemplate,
             }
         }]
     ])
@@ -190,7 +210,7 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
         this._dataDuration = header.dataUnitCount*header.dataUnitDuration
         this._totalDuration = this._dataDuration
         // Listen to is-active changes.
-        this.addEventListener(AssetEvents.ACTIVATE, async () => {
+        this.addEventListener(AssetEvents.ACTIVATE, () => {
             // The ACTIVATE event fires for both 'before' and 'after' phases. Skip 'before':
             // _isActive is false then, so cacheSignals() would return immediately, and the
             // 'after' handler would see isReady=true (set by 'before' setup) and skip everything
@@ -198,7 +218,12 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
             if (!this._isActive) {
                 return
             }
-            await this._completeSetup()
+            // The listener slot is synchronous, so the setup's failure has to be caught here or it
+            // surfaces as an unhandled rejection with the recording left half set up and nothing
+            // said about it.
+            this._completeSetup().catch((e: unknown) => {
+                Log.error(`Completing setup of the EEG recording failed.`, SCOPE, asError(e))
+            })
         }, this.id)
     }
     get events () {
@@ -236,7 +261,7 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
         super.events = events
     }
     get channels () {
-        return this._channels as SourceChannel[]
+        return this._channels
     }
     set channels (value: SourceChannel[]) {
         this._channels = value
@@ -251,18 +276,13 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
     set isActive (value: boolean) {
         // Check if disabling has side effects.
         if (this._SETTINGS?.unloadOnClose && this._service?.isReady) {
-            // CRITICAL: flip `_isActive` synchronously BEFORE the async unload
-            // kicks off, otherwise the runtime's `getActiveResource` iteration
-            // can still see this recording as active during the brief (drain-
-            // widened) window between "user clicks new" and "old's unload
-            // completes" — and the newly-mounted EegViewer/EegPlot will then
-            // capture *this* (about-to-be-released) resource as its RESOURCE
-            // instead of the new one, leading to "signal cache has not been
-            // set up yet" errors as soon as the release ack lands and nulls
-            // the mutex. Synchronous flip means the iteration finds the new
-            // recording correctly; unload runs in the background and any
-            // listeners that care about the actual teardown completion can
-            // subscribe to the service's `isReady` property change instead.
+            // `_isActive` must flip synchronously, before the teardown starts: the guarantee this
+            // setter makes is that no observer can see a deactivating recording as active, not even
+            // for a microtask. A resource lookup that lands in such a window binds to a recording
+            // whose mutex is about to be nulled, and every signal request against it then fails.
+            // The release itself is asynchronous and runs in the background; a caller that needs to
+            // know when it has finished awaits `awaitDeactivation` or watches the service's
+            // `isReady` property.
             const prev = this._isActive
             this.dispatchEvent(value ? AssetEvents.ACTIVATE : AssetEvents.DEACTIVATE, 'before')
             this.dispatchPropertyChangeEvent('isActive', value, prev, 'before')
@@ -279,7 +299,7 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
                 Log.error(`Async unload failed: ${(e as Error)?.message ?? e}`, SCOPE)
             })
             this._pendingDeactivation = deactivation
-            deactivation.finally(() => {
+            void deactivation.finally(() => {
                 // Only clear if a newer deactivation hasn't already replaced this one.
                 if (this._pendingDeactivation === deactivation) {
                     this._pendingDeactivation = null
@@ -297,40 +317,31 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
         this._videos = videos
     }
 
-    ///////////////////////////////////////////////////
-    //                   METHODS                     //
-    ///////////////////////////////////////////////////
-
     async awaitDeactivation () {
         await this._pendingDeactivation
     }
 
     /**
-     * Public entry point for callers that want to ensure the aEEG trend is set up — typically the
-     * UI when the user toggles the trend strip visible. If signal caching has already finished,
-     * setup runs immediately. Otherwise the request is queued and the
-     * {@link BiosignalResourceEvents.SIGNAL_CACHING_COMPLETE} handler will fulfil it once data is
-     * available. Calling this before `activeMontage` is set is also safe; the activeMontage
-     * property-change handler will retry.
-     */
-    /**
-     * Request setup of the given trend type. Idempotent — once a type has been requested,
-     * every subsequent `_buildAmplitudeTrends` call proceeds without further prompting.
-     * Triggers immediately using whatever signal is already cached; the `signalCacheStatus`
-     * listener then extends computation as more data arrives.
-     */
-    /**
-     * Clear all previously-enabled trend types. Call before `ensureTrendSetup` when
-     * switching trend types so that stale types don't cause unintended builds.
+     * Clear all previously-enabled trend types. Call before {@link ensureTrendSetup} when switching
+     * trend types so that stale types do not cause unintended builds.
      */
     clearTrendTypes () {
         this._trendsEnabled.clear()
     }
 
+    /**
+     * Request setup of the given trend type, so that the type builds on this and every later setup
+     * pass regardless of what auto-computes. Idempotent.
+     *
+     * Setup is scheduled immediately and works from whatever signal is already cached, so a type
+     * requested before the first epoch is cached builds as soon as one is; the `signalCacheStatus`
+     * listener then extends the computation as more data arrives.
+     * @param type - Trend type to enable.
+     */
     ensureTrendSetup (type: BiosignalTrendType = 'amplitude') {
         this._trendsEnabled.add(type)
-        // Trigger immediately — _buildAmplitudeTrends now works on partial data,
-        // so there is no reason to wait for SIGNAL_CACHING_COMPLETE.
+        // Scheduled immediately rather than on SIGNAL_CACHING_COMPLETE: the builders work from
+        // whatever is cached, and a request made mid-load should not wait for the whole file.
         this._scheduleTrendSetup()
     }
 
@@ -351,7 +362,7 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
         // essentially −CAR, collapsing the spectral asymmetry that ratio and pdBSI rely on.
         const signalModalities = this._channels.map(c => c.modality)
         const result = await service.setupWorker(
-            cache as import('asymmetric-io-mutex').MutexExportProperties,
+            cache,
             this.dataDuration,
             this.totalDuration,
             'eeg',
@@ -401,15 +412,23 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
         // When a computation finishes, immediately check whether more signal has arrived
         // since we started — if so, queue the next chunk.
         trend.addEventListener('trend-complete', () => {
-            Log.debug(`[trend] '${trend.name}' complete up to ${trend.computedUpToSec}s → extend to ${this._signalCacheStatus[1]}s`, SCOPE)
+            Log.debug(
+                `[trend] '${trend.name}' complete up to ${trend.computedUpToSec}s ` +
+                `→ extend to ${this._signalCacheStatus[1]}s`,
+                SCOPE
+            )
             this._extendTrendsToCache(this._signalCacheStatus[1])
         }, this.id)
         const epochLength = trend.epochLength
         const alignedEnd = Math.floor(initialCachedEnd / epochLength) * epochLength
-        Log.debug(`[trend] _setupTrend '${trend.name}' epochLen=${epochLength}s initialCached=${initialCachedEnd}s alignedEnd=${alignedEnd}s`, SCOPE)
+        Log.debug(
+            `[trend] _setupTrend '${trend.name}' epochLen=${epochLength}s ` +
+            `initialCached=${initialCachedEnd}s alignedEnd=${alignedEnd}s`,
+            SCOPE
+        )
         if (alignedEnd >= epochLength) {
             trend.computeTrend([0, alignedEnd]).catch((error: unknown) => {
-                Log.warn(`Initial compute of trend '${trend.name}' failed: ${error}`, SCOPE)
+                Log.warn(`Initial compute of trend '${trend.name}' failed: ${asError(error).message}`, SCOPE)
             })
         }
     }
@@ -426,19 +445,25 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
         for (const trend of this._trends.values()) {
             const epochLength = trend.epochLength
             const alignedEnd = Math.floor(cachedEndSec / epochLength) * epochLength
-            Log.debug(`[trend] _extendTrendsToCache '${trend.name}' computing=${(trend as unknown as { _computing?: boolean })._computing} upTo=${trend.computedUpToSec}s → alignedEnd=${alignedEnd}s`, SCOPE)
+            const computing = (trend as unknown as { _computing?: boolean })._computing
+            Log.debug(
+                `[trend] _extendTrendsToCache '${trend.name}' computing=${computing} ` +
+                `upTo=${trend.computedUpToSec}s → alignedEnd=${alignedEnd}s`,
+                SCOPE
+            )
             if (alignedEnd <= trend.computedUpToSec) {
                 continue
             }
             trend.computeTrend([trend.computedUpToSec, alignedEnd]).catch((error: unknown) => {
-                Log.warn(`Extend of trend '${trend.name}' failed: ${error}`, SCOPE)
+                Log.warn(`Extend of trend '${trend.name}' failed: ${asError(error).message}`, SCOPE)
             })
         }
     }
 
     /**
      * Override of `GenericBiosignalResource._constructCascadeMontage` so the EEG resource's `addCascadeMontage`
-     * produces `EegCascadeMontage` instances — channels wrapped in `EegMontageChannel`, worker pinned to `eeg-montage`.
+     * produces `EegCascadeMontage` instances — channels wrapped in `EegMontageChannel`, worker pinned to
+     * `eeg-montage`.
      */
     protected _constructCascadeMontage (
         name: string,
@@ -474,7 +499,8 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
             const setup = this._setups.find(s => s.name === setupName)
             if (!setup) {
                 Log.debug(
-                    `Cascade montage setup '${setupName}' not found on this recording; skipping ${entries.length} entr${entries.length === 1 ? 'y' : 'ies'}.`,
+                    `Cascade montage setup '${setupName}' not found on this recording; skipping ` +
+                    `${entries.length} entr${entries.length === 1 ? 'y' : 'ies'}.`,
                     SCOPE,
                 )
                 continue
@@ -490,7 +516,8 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
                 ))
                 if (!chosenSource) {
                     Log.debug(
-                        `No cascade source resolved for '${entry.label}' in setup '${setupName}' from candidates [${entry.candidates.join(', ')}].`,
+                        `No cascade source resolved for '${entry.label}' in setup '${setupName}' ` +
+                        `from candidates [${entry.candidates.join(', ')}].`,
                         SCOPE,
                     )
                     continue
@@ -569,7 +596,10 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
         }
         const cachedEnd = this._signalCacheStatus[1]
         if (cachedEnd < epochLength) {
-            Log.debug(`Not enough signal cached yet (${cachedEnd}s < ${epochLength}s epoch); deferring trend setup.`, SCOPE)
+            Log.debug(
+                `Not enough signal cached yet (${cachedEnd}s < ${epochLength}s epoch); deferring trend setup.`,
+                SCOPE
+            )
             return
         }
         const service = this._trendService
@@ -596,12 +626,15 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
      */
     protected _buildSpectrogramTrends () {
         const settings = this._SETTINGS
-        const existingSpec = [...this._trends.values()].filter(t => t.derivation.type === 'spectrogram').map(t => t.name)
         const derivations = this._trendDerivations(settings?.spectrogram?.derivations)
         if (!derivations.length || !this._setup) {
             return
         }
-        if (!this._trendsEnabled.has('spectrogram') || existingSpec.length > 0) {
+        if (!this._trendsEnabled.has('spectrogram')) {
+            return
+        }
+        const hasSpectrogram = [...this._trends.values()].some(t => t.derivation.type === 'spectrogram')
+        if (hasSpectrogram) {
             return
         }
         const specCfg = settings.trends?.spectrogram
@@ -770,6 +803,7 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
      * Idempotent: `addSetup` already short-circuits on a name collision, so a second call to
      * `prepare()` is safe.
      */
+    // eslint-disable-next-line @typescript-eslint/require-await -- overrides an async base method.
     protected override async _applyDefaultSetups (): Promise<void> {
         if (!this._SETTINGS) {
             return
@@ -845,27 +879,17 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
      * shared buffer (or the JS-heap cache), start the trend service, build the montages, and fill
      * the cache with signal data.
      *
-     * Idempotent by the same guard the ACTIVATE handler used to carry — a ready service means the
-     * work is already done, and a resource that has not finished `prepare()` is not yet set up to
-     * receive it. Both callers rely on that: activation calls this on every ACTIVATE, and
-     * {@link preload} may be called on a recording that is about to be activated anyway.
-     *
-     * Split out of the ACTIVATE listener so that {@link preload} can reach it without the resource
-     * being active. Everything below is the listener's original body; the only change is that the
-     * channel loops read `this.channels` rather than the constructor's `channels` argument, which
-     * the listener closed over. The two hold the same channels — `this._channels` is built from
-     * that argument one-to-one in the constructor — and the resource's own list is the right one to
-     * read at setup time in any case.
+     * Idempotent: a ready service means the work is already done, and a resource that has not
+     * finished `prepare()` is not yet set up to receive it. Both callers rely on that — activation
+     * calls this on every ACTIVATE, and {@link preload} may be called on a recording that is about
+     * to be activated anyway.
      */
     protected async _completeSetup (): Promise<void> {
-        // Complete loader setup if not already done. Note: no defensive
-        // `signalCacheStatus = [0, 0]` reset here — `releaseSignalArrays` (Level 1 of
-        // the cache lifecycle, called via `releaseBuffers` on close) drains all
-        // in-flight `_readAndCachePart` chunks before its ack reaches the main thread,
-        // so by the time this branch runs no stale `cache-signals` progress message
-        // can land and bump the status back up. The reset that used to live here was
-        // a band-aid for that race; the structural drain in `GenericSignalReader.
-        // releaseSignalArrays` makes it unnecessary.
+        // No defensive `signalCacheStatus = [0, 0]` reset is needed here, and adding one would
+        // hide a real fault rather than guard against one: `releaseSignalArrays` (Level 1 of the
+        // cache lifecycle, reached through `releaseBuffers` on close) drains every in-flight
+        // `_readAndCachePart` chunk before its ack reaches the main thread, so no stale
+        // `cache-signals` progress message can land once this branch runs.
         if (!this._service?.isReady && this._state === 'ready') {
             this.dispatchEvent(EegRecording.EVENTS.INITIAL_SETUP, 'before')
             if (this._memoryManager) {
@@ -981,12 +1005,11 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
             // into the memory budget). Montages need the SAB to be in place, so they happen
             // here, after setupMutex / setupCache.
             //
-            // Montages added before the SAB existed were published without a worker cache:
-            // the interface `created` lifecycle hook adds settings-sourced extra montages
-            // (project setups such as BrainStatus) at resource creation, when `addMontage`
-            // cannot commission the montage processor because no mutex/cache is available
-            // yet. Snapshot them before applying defaults so we can wire exactly those below
-            // — the montages `_applyDefaultMontages` adds are already wired by `addMontage`.
+            // A montage may be added before the SAB exists — a consumer is free to add one as
+            // soon as the resource is constructed — and `addMontage` then publishes it without a
+            // worker cache, because there is nothing to commission the montage processor against.
+            // Snapshot those before applying the defaults, so that exactly they are wired below;
+            // the montages `_applyDefaultMontages` adds are wired by `addMontage` itself.
             const montagesAddedBeforeSetup = [...this.montages]
             await this._applyDefaultMontages()
             // Wire the pre-setup montages now that the mutex / cache is in place. This also
@@ -1080,10 +1103,9 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
 
     /**
      * Wire each of the given montages' worker-side processors to the currently active signal
-     * source — the SAB mutex when present, otherwise the JS-heap cache. Called from the ACTIVATE
-     * handler for montages that were added before the SAB existed (e.g. via the interface
-     * `created` lifecycle hook), which `addMontage` therefore published without a cache. A montage
-     * is left untouched when neither a mutex nor a cache is available.
+     * source — the SAB mutex when present, otherwise the JS-heap cache. For montages added before
+     * the buffer existed, which `addMontage` therefore published without a cache. A montage is left
+     * untouched when neither a mutex nor a cache is available.
      */
     protected async _wireMontageDataSources (montages: BiosignalMontage[]): Promise<void> {
         for (const montage of montages) {
@@ -1148,21 +1170,16 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
                 { label: label }
             )
             montage.mapChannels(config)
-            // Set up the worker-side cache BEFORE publishing the montage on the
-            // `montages` property. The property-change dispatch is synchronous
-            // and fans out to Vue reactivity (EegViewer.montagesChanged →
-            // setChannelLayout → channel property change → EegPlot.updateTraces
-            // → getAllSignals). If we set the property first, those sync
-            // listeners post `get-signals` to the (substitute or real) worker
-            // before the `setup-cache` / `setup-input-mutex` commission has
-            // even been queued — the worker's MontageProcessor `_cache` is
-            // still `null`, getSignals errors with "signal cache has not been
-            // set up yet", and the UI never paints. Awaiting setup here
-            // serialises the commission round-trip and lets listeners see a
-            // ready montage.
-            // When neither is set the montage is being added before activation (e.g. the
-            // interface `created` hook) — there is no SAB to wire yet. The ACTIVATE handler
-            // wires such montages once the mutex/cache exists; see `montagesAddedBeforeSetup`.
+            // The worker-side cache is commissioned before the montage is published on the
+            // `montages` property, and that order is the contract: the property-change dispatch is
+            // synchronous, so a listener may request signals from within it. A montage published
+            // ahead of its commission answers such a request while the worker-side processor still
+            // holds no cache, which fails rather than waiting. Awaiting the commission here means
+            // every listener sees a montage that can serve signals.
+            //
+            // With neither a mutex nor a cache available there is nothing to commission against;
+            // the montage is published unwired and `_wireMontageDataSources` commissions it once
+            // the buffer exists.
             if (this._mutexProps) {
                 await montage.setupServiceWithInputMutex(this._mutexProps)
             } else if (this._cacheProps) {
@@ -1239,7 +1256,7 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
             this._source as StudyContext,
             options,
             this._formatHeader || undefined
-        ).then(async response => {
+        ).then(response => {
             if (response) {
                 this.totalDuration = response
                 return true
@@ -1250,8 +1267,8 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
             this._errorReason = 'Setting up resource failed'
             this.state = 'error'
             return false
-        }).catch(e => {
-            Log.error(`Error when preparing the worker for the EEG recording.`, SCOPE, e)
+        }).catch((e: unknown) => {
+            Log.error(`Error when preparing the worker for the EEG recording.`, SCOPE, asError(e))
             this._errorReason = 'Setting up resource failed'
             this.state = 'error'
             return false
@@ -1279,12 +1296,6 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
                 this.dispatchEvent(AssetEvents.ACTIVATE, 'after')
             }
         }
-        // Load possible videos
-        //if (study.meta.videos) {
-        //    for (const { url, startTime, endTime, group, syncPoints } of study.meta.videos) {
-        //        this._videos.push(new EegVideo(url, startTime, endTime, group, syncPoints))
-        //    }
-        //}
         return response
     }
 
