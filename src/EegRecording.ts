@@ -321,23 +321,10 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
         await this._pendingDeactivation
     }
 
-    /**
-     * Clear all previously-enabled trend types. Call before {@link ensureTrendSetup} when switching
-     * trend types so that stale types do not cause unintended builds.
-     */
     clearTrendTypes () {
         this._trendsEnabled.clear()
     }
 
-    /**
-     * Request setup of the given trend type, so that the type builds on this and every later setup
-     * pass regardless of what auto-computes. Idempotent.
-     *
-     * Setup is scheduled immediately and works from whatever signal is already cached, so a type
-     * requested before the first epoch is cached builds as soon as one is; the `signalCacheStatus`
-     * listener then extends the computation as more data arrives.
-     * @param type - Trend type to enable.
-     */
     ensureTrendSetup (type: BiosignalTrendType = 'amplitude') {
         this._trendsEnabled.add(type)
         // Scheduled immediately rather than on SIGNAL_CACHING_COMPLETE: the builders work from

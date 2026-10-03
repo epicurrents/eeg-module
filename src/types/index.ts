@@ -14,6 +14,7 @@ import type {
     BiosignalResource,
     BiosignalSetup,
     BiosignalStudyProperties,
+    BiosignalTrendType,
     ConfigBiosignalSetup,
     ConfigMapChannels,
     SourceChannel,
@@ -96,6 +97,22 @@ export interface EegResource extends BiosignalResource {
      * @returns The created setup.
      */
     addSetup (config: ConfigBiosignalSetup, channels?: BiosignalChannel[]): BiosignalSetup
+    /**
+     * Clear all previously-enabled trend types. Call before {@link EegResource.ensureTrendSetup} when
+     * switching trend types, so that a type enabled for the previous selection does not keep building
+     * alongside the new one.
+     */
+    clearTrendTypes (): void
+    /**
+     * Request setup of the given trend type, so that the type builds on this and every later setup
+     * pass regardless of what auto-computes. Idempotent.
+     *
+     * Setup is scheduled immediately and works from whatever signal is already cached, so a type
+     * requested before the first epoch is cached builds as soon as one is; the `signalCacheStatus`
+     * listener then extends the computation as more data arrives.
+     * @param type - Trend type to enable.
+     */
+    ensureTrendSetup (type?: BiosignalTrendType): void
     /**
      * Prepare the resource for display without activating it, so that switching to it later is
      * immediate: allocate its buffer, build its montages and fill its signal cache.
