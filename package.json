@@ -1,6 +1,6 @@
 {
   "name": "@epicurrents/eeg-module",
-  "version": "0.1.1-8",
+  "version": "1.0.0",
   "description": "Epicurrents EEG module",
   "keywords": [
     "eeg",
