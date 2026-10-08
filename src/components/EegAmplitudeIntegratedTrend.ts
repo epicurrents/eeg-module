@@ -20,12 +20,11 @@ export default class EegAmplitudeIntegratedTrend extends EegTrend {
         name: string,
         label: string,
         service: BiosignalTrendService,
-        options: { epochLength?: number } = {}
+        options: { epochLength?: number, epochStep?: number } = {}
     ) {
-        const epochLength = options.epochLength ?? 5
         super(name, label, 'amplitude', service, {
-            epochLength,
-            samplingRate: 1 / epochLength,
+            epochLength: options.epochLength ?? 5,
+            epochStep: options.epochStep,
         })
     }
 }

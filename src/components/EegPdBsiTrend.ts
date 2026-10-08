@@ -30,13 +30,17 @@ export default class EegPdBsiTrend extends EegTrend {
         service: BiosignalTrendService,
         options: {
             epochLength?: number
+            /** Seconds between epoch starts; empty or zero means the epoch length. */
+            epochStep?: number
             samplingRate?: number
             band: [number, number]
         },
     ) {
-        const epochLength = options.epochLength ?? 2
-        const samplingRate = options.samplingRate ?? 1 / epochLength
-        super(name, label, 'pdbsi', service, { epochLength, samplingRate })
+        super(name, label, 'pdbsi', service, {
+            epochLength: options.epochLength ?? 2,
+            epochStep: options.epochStep,
+            samplingRate: options.samplingRate,
+        })
         this._band = options.band
     }
 

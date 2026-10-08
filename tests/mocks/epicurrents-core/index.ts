@@ -3,6 +3,7 @@
 // its table on the base one with them, and a stand-in would hide a mismatch between the two.
 import { codedEventsFromVocabulary, mergeCodedEvents } from '../../../../core/src/assets/annotation/vocabulary'
 import biosignalVocabulary from '../../../../core/src/assets/annotation/vocabulary/biosignal-events.json'
+import { resolveTrendEpochStep } from './util'
 
 /** The shared acquisition set, loaded from the core checkout beside this package, so an EEG test
  *  sees the real merged view. */
@@ -516,6 +517,7 @@ export class GenericBiosignalTrend {
     protected _denominatorBand: [number, number] | undefined = undefined
     protected _derivation: any
     protected _epochLength = 0
+    protected _epochStep = 0
     protected _frequencyBins: number | undefined = undefined
     protected _label = ''
     protected _maxFreqHz: number | undefined = undefined
@@ -531,6 +533,7 @@ export class GenericBiosignalTrend {
         this._label = label
         this._derivation = derivation
         this._epochLength = options.epochLength ?? 0
+        this._epochStep = resolveTrendEpochStep(this._epochLength, options.epochStep)
         this._samplingRate = options.samplingRate ?? 0
         this._service = service
         if (service && derivation?.sourceChannels?.length) {
@@ -540,6 +543,7 @@ export class GenericBiosignalTrend {
 
     get derivation () { return this._derivation }
     get epochLength () { return this._epochLength }
+    get epochStep () { return this._epochStep }
     get frequencyBins () { return this._frequencyBins }
     get label () { return this._label }
     get name () { return this._name }
@@ -556,6 +560,7 @@ export class GenericBiosignalTrend {
                 numeratorBand: this._numeratorBand,
                 denominatorBand: this._denominatorBand,
                 band: this._band,
+                epochStep: this._epochStep,
             },
         )
     }

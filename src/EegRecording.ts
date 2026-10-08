@@ -12,7 +12,12 @@ import {
 } from '@epicurrents/core'
 import { AssetEvents, BiosignalResourceEvents } from '@epicurrents/core/events'
 import { TrendService } from '@epicurrents/core/assets'
-import { calculateSignalOffsets, INDEX_NOT_ASSIGNED, resolveTrendEpochLength } from '@epicurrents/core/util'
+import {
+    calculateSignalOffsets,
+    INDEX_NOT_ASSIGNED,
+    resolveTrendEpochLength,
+    trendCoveredEnd,
+} from '@epicurrents/core/util'
 import type {
     AnnotationEventTemplate,
     AnnotationLabelTemplate,
@@ -135,6 +140,9 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
     protected _videos: EegVideo[] = []
     /** Dedicated trend service — created on first activation, shared by all trends. */
     protected _trendService: import('@epicurrents/core/types').BiosignalTrendService | null = null
+    /** Why the trend service could not be created, once setup has given up on it. While this is
+     *  null and the service is missing, setup has simply not reached it yet. */
+    protected _trendServiceUnavailable: string | null = null
 
     /**
      * Create a new EegRecording.
@@ -335,11 +343,17 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
     /**
      * Create and connect the dedicated trend service using the EDF reader's output SAB.
      * Trends require SharedArrayBuffer: `TrendProcessor` reads raw electrode signals
-     * directly from the SAB. Silently skipped when SAB is unavailable.
+     * directly from the SAB. When that is unavailable the reason is logged once and kept in
+     * `_trendServiceUnavailable`, so a later request for a trend can say why it cannot be built.
      */
     protected async _initTrendService () {
         const cache = this.dataCache
         if (!cache || !('buffer' in cache)) {
+            this._trendServiceUnavailable = globalThis.crossOriginIsolated
+                ? 'the signal cache is not backed by shared memory'
+                : 'trends need SharedArrayBuffer, which the browser provides only on a cross-origin isolated '
+                    + 'page (Cross-Origin-Opener-Policy: same-origin and Cross-Origin-Embedder-Policy: require-corp)'
+            Log.warn(`Trends are unavailable for this recording: ${this._trendServiceUnavailable}.`, SCOPE)
             return
         }
         const service = new TrendService()
@@ -358,6 +372,22 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
         )
         if (result) {
             this._trendService = service
+        } else {
+            this._trendServiceUnavailable = 'the trend worker could not be set up'
+            Log.warn(`Trends are unavailable for this recording: ${this._trendServiceUnavailable}.`, SCOPE)
+        }
+    }
+
+    /**
+     * Report that a trend of the kind `what` cannot be built because the trend service is missing.
+     * A service that setup gave up on is a warning naming the reason; one that setup has not reached
+     * yet is only a debug note, since the setup that follows schedules the build again.
+     */
+    protected _reportMissingTrendService (what: string) {
+        if (this._trendServiceUnavailable) {
+            Log.warn(`Cannot build ${what}: ${this._trendServiceUnavailable}.`, SCOPE)
+        } else {
+            Log.debug(`Deferring ${what}: the trend service is still being set up.`, SCOPE)
         }
     }
 
@@ -407,9 +437,10 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
             this._extendTrendsToCache(this._signalCacheStatus[1])
         }, this.id)
         const epochLength = trend.epochLength
-        const alignedEnd = Math.floor(initialCachedEnd / epochLength) * epochLength
+        // The end of the last whole epoch in the cached signal, so no epoch is computed from part of its window.
+        const alignedEnd = trendCoveredEnd(initialCachedEnd, epochLength, trend.epochStep)
         Log.debug(
-            `[trend] _setupTrend '${trend.name}' epochLen=${epochLength}s ` +
+            `[trend] _setupTrend '${trend.name}' epochLen=${epochLength}s step=${trend.epochStep}s ` +
             `initialCached=${initialCachedEnd}s alignedEnd=${alignedEnd}s`,
             SCOPE
         )
@@ -422,7 +453,7 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
 
     /**
      * Extend all registered trends to cover newly cached signal up to `cachedEndSec`.
-     * Only computes complete epochs (aligned to epochLength); skips trends that are
+     * Only computes complete epochs (whole windows within the cached signal); skips trends that are
      * already up to date or currently computing.
      */
     protected _extendTrendsToCache (cachedEndSec: number) {
@@ -430,8 +461,7 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
             return
         }
         for (const trend of this._trends.values()) {
-            const epochLength = trend.epochLength
-            const alignedEnd = Math.floor(cachedEndSec / epochLength) * epochLength
+            const alignedEnd = trendCoveredEnd(cachedEndSec, trend.epochLength, trend.epochStep)
             const computing = (trend as unknown as { _computing?: boolean })._computing
             Log.debug(
                 `[trend] _extendTrendsToCache '${trend.name}' computing=${computing} ` +
@@ -578,7 +608,7 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
             return
         }
         if (!this._trendService) {
-            Log.warn(`Cannot build trends: trend service not initialised yet.`, SCOPE)
+            this._reportMissingTrendService('amplitude trends')
             return
         }
         const cachedEnd = this._signalCacheStatus[1]
@@ -595,7 +625,7 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
                 `aeeg-${entry.id}`,
                 entry.label,
                 service,
-                { epochLength }
+                { epochLength, epochStep: settings.trends?.amplitude?.epochStep },
             )
             const resolved = trend.tryResolveDerivation(this._setup, entry.candidates)
             if (!resolved) {
@@ -632,7 +662,7 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
         }
         const maxFreqHz   = specCfg?.maxFreqHz   ?? 30
         if (!this._trendService) {
-            Log.warn(`Cannot build spectrogram trends: trend service not initialised yet.`, SCOPE)
+            this._reportMissingTrendService('spectrogram trends')
             return
         }
         const cachedEnd = this._signalCacheStatus[1]
@@ -654,7 +684,7 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
                 `spectrogram-${entry.id}`,
                 entry.label,
                 service,
-                { epochLength, maxFreqHz, frequencyBins },
+                { epochLength, epochStep: specCfg?.epochStep, maxFreqHz, frequencyBins },
             )
             const resolved = trend.tryResolveDerivation(this._setup, entry.candidates, { averageReference })
             if (!resolved) {
@@ -702,7 +732,7 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
         ]
         const averageReference = ratioCfg?.averageReference ?? true
         if (!this._trendService) {
-            Log.warn(`Cannot build ratio trends: trend service not initialised yet.`, SCOPE)
+            this._reportMissingTrendService('ratio trends')
             return
         }
         const cachedEnd = this._signalCacheStatus[1]
@@ -715,7 +745,7 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
                 `ratio-${entry.id}`,
                 entry.label,
                 service,
-                { epochLength, numeratorBand, denominatorBand },
+                { epochLength, epochStep: ratioCfg?.epochStep, numeratorBand, denominatorBand },
             )
             const resolved = trend.tryResolveDerivation(this._setup, entry.candidates, { averageReference })
             if (!resolved) {
@@ -760,7 +790,7 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
             return
         }
         if (!this._trendService) {
-            Log.warn(`Cannot build pdBSI trend: trend service not initialised yet.`, SCOPE)
+            this._reportMissingTrendService('the pdBSI trend')
             return
         }
         const cachedEnd = this._signalCacheStatus[1]
@@ -771,7 +801,7 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
             'pdbsi',
             'pdBSI',
             this._trendService,
-            { epochLength, band },
+            { epochLength, epochStep: mathCfg?.epochStep, band },
         )
         const resolved = trend.tryResolvePairs(this._setup, pairs, { averageReference })
         if (!resolved) {

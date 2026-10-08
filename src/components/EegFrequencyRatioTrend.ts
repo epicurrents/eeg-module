@@ -29,14 +29,18 @@ export default class EegFrequencyRatioTrend extends EegTrend {
         service: BiosignalTrendService,
         options: {
             epochLength?: number
+            /** Seconds between epoch starts; empty or zero means the epoch length. */
+            epochStep?: number
             samplingRate?: number
             numeratorBand: [number, number]
             denominatorBand: [number, number]
         },
     ) {
-        const epochLength = options.epochLength ?? 2
-        const samplingRate = options.samplingRate ?? 1 / epochLength
-        super(name, label, 'ratio', service, { epochLength, samplingRate })
+        super(name, label, 'ratio', service, {
+            epochLength: options.epochLength ?? 2,
+            epochStep: options.epochStep,
+            samplingRate: options.samplingRate,
+        })
         this._numeratorBand = options.numeratorBand
         this._denominatorBand = options.denominatorBand
     }

@@ -6,6 +6,7 @@
  */
 
 import { GenericBiosignalTrend } from '@epicurrents/core'
+import { resolveTrendEpochStep } from '@epicurrents/core/util'
 import type {
     BiosignalSetup,
     BiosignalTrendService,
@@ -32,12 +33,21 @@ export default class EegTrend extends GenericBiosignalTrend {
         service: BiosignalTrendService,
         options: {
             epochLength?: number
+            /** Seconds between epoch starts; empty or zero means the epoch length. */
+            epochStep?: number
             samplingRate?: number
         } = {}
     ) {
         const epochLength = options.epochLength ?? 5
-        const samplingRate = options.samplingRate ?? 1 / epochLength
-        super(name, label, { sourceChannels: [], referenceChannels: [], type }, service, { samplingRate, epochLength })
+        // The trend yields one value per epoch, and epochs start a step apart.
+        const samplingRate = options.samplingRate ?? 1 / resolveTrendEpochStep(epochLength, options.epochStep)
+        super(
+            name,
+            label,
+            { sourceChannels: [], referenceChannels: [], type },
+            service,
+            { samplingRate, epochLength, epochStep: options.epochStep },
+        )
     }
 
     /**

@@ -28,3 +28,17 @@ export function resolveTrendEpochLength (
 export function safeObjectFrom (template: object) {
     return Object.assign(Object.create(null), template)
 }
+
+/**
+ * Stubs of the epoch-step helpers. They follow core's rules — no usable step means the epoch length, and the covered
+ * end is the end of the last whole window — because the trend builders' scheduling depends on the values; the edge
+ * cases are tested in core.
+ */
+export function resolveTrendEpochStep (epochLength: number, step: unknown) {
+    return typeof step === 'number' && step > 0 && step <= epochLength ? step : epochLength
+}
+
+export function trendCoveredEnd (cachedEnd: number, epochLength: number, step: number) {
+    return cachedEnd >= epochLength ? Math.floor((cachedEnd - epochLength) / step + 1e-9) * step + epochLength : 0
+}
+

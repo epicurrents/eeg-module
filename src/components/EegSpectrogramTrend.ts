@@ -19,6 +19,8 @@ export default class EegSpectrogramTrend extends EegTrend {
         service: BiosignalTrendService,
         options: {
             epochLength?: number
+            /** Seconds between epoch starts; empty or zero means the epoch length. */
+            epochStep?: number
             samplingRate?: number
             /**
              * Number of output frequency bins per epoch. One per Hz up to `maxFreqHz` keeps the
@@ -28,9 +30,11 @@ export default class EegSpectrogramTrend extends EegTrend {
             maxFreqHz?: number
         }
     ) {
-        const epochLength = options.epochLength ?? 1
-        const samplingRate = options.samplingRate ?? 1 / epochLength
-        super(name, label, 'spectrogram', service, { epochLength, samplingRate })
+        super(name, label, 'spectrogram', service, {
+            epochLength: options.epochLength ?? 1,
+            epochStep: options.epochStep,
+            samplingRate: options.samplingRate,
+        })
         this._frequencyBins = options.frequencyBins
         this._maxFreqHz = options.maxFreqHz
     }

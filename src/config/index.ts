@@ -109,12 +109,14 @@ const EegSettings: EegModuleSettings = {
             bandLowpass: 15,
             epochLength: 0,    // Derived from the recording length; see TREND_EPOCH_SCALING.
             epochScaling: freshScaling(TREND_EPOCH_SCALING),
+            epochStep: 0,      // No overlap: each epoch starts where the previous one ended.
             envelopeMethod: 'minmax',
             scaleCompression: 'semilog',
         },
         spectrogram: {
             epochLength: 0,    // Derived from the recording length; see TREND_EPOCH_SCALING.
             epochScaling: freshScaling(TREND_EPOCH_SCALING),
+            epochStep: 0,      // No overlap: each epoch starts where the previous one ended.
             maxFreqHz:   30,   // keep 0–30 Hz (covers delta through gamma for EEG)
             mode: 'proportion',  // proportion is faster to draw and a better default
             averageReference: false,
@@ -122,6 +124,7 @@ const EegSettings: EegModuleSettings = {
         ratio: {
             epochLength: 0,    // Derived from the recording length; see TREND_EPOCH_SCALING.
             epochScaling: freshScaling(TREND_EPOCH_SCALING),
+            epochStep: 0,      // No overlap: each epoch starts where the previous one ended.
             numeratorBand: [4, 8],     // theta — TAR numerator
             denominatorBand: [8, 13],  // alpha — TAR denominator
             averageReference: true,
@@ -129,6 +132,7 @@ const EegSettings: EegModuleSettings = {
         pdbsi: {
             epochLength: 0,    // Derived from the recording length; see TREND_EPOCH_SCALING.
             epochScaling: freshScaling(TREND_EPOCH_SCALING),
+            epochStep: 0,      // No overlap: each epoch starts where the previous one ended.
             band: [1, 4],              // delta — ELECTRA-STROKE
             averageReference: true,
         },

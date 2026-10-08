@@ -9,7 +9,9 @@
 
 import { beforeEach, describe, expect, test, vi } from 'vitest'
 import type { BiosignalChannel, ConfigBiosignalSetup } from '@epicurrents/core/types'
+import { Log } from 'scoped-event-log'
 import EegRecording from '../src/EegRecording'
+import EegSpectrogramTrend from '../src/components/EegSpectrogramTrend'
 
 ;(window as unknown as { __EPICURRENTS__: unknown }).__EPICURRENTS__ = {
     RUNTIME: { SETTINGS: { modules: { eeg: {} }, app: {} } },
@@ -33,6 +35,8 @@ type Internals = {
     _setup: unknown
     _signalCacheStatus: number[]
     _trendService: unknown
+    _trendServiceUnavailable: string | null
+    _initTrendService: () => Promise<void>
     _trends: Map<string, unknown>
     _trendsEnabled: Set<string>
     _buildAmplitudeTrends: () => void
@@ -288,8 +292,8 @@ describe('ensureTrendSetup and clearTrendTypes', () => {
 })
 
 describe('_setupTrend and _extendTrendsToCache', () => {
-    const trendStub = (name: string, epochLength: number, computedUpToSec = 0) => ({
-        name, epochLength, computedUpToSec,
+    const trendStub = (name: string, epochLength: number, computedUpToSec = 0, epochStep = epochLength) => ({
+        name, epochLength, epochStep, computedUpToSec,
         addEventListener: vi.fn(),
         cancelTrendComputation: vi.fn(),
         computeTrend: vi.fn().mockResolvedValue(undefined),
@@ -337,6 +341,15 @@ describe('_setupTrend and _extendTrendsToCache', () => {
         internals._trends.set('t', trend)
         internals._extendTrendsToCache(37)
         expect(trend.computeTrend).not.toHaveBeenCalled()
+    })
+
+    test('overlapping epochs extend to the end of the last whole window', () => {
+        // 3 s windows every 0.5 s: with 12.2 s cached the last whole window ends at 12.
+        const { internals } = makeRecording()
+        const trend = trendStub('t', 3, 10, 0.5)
+        internals._trends.set('t', trend)
+        internals._extendTrendsToCache(12.2)
+        expect(trend.computeTrend).toHaveBeenCalledWith([10, 12])
     })
 
     test('each trend is extended on its own epoch grid', () => {
@@ -397,5 +410,92 @@ describe('addSetup', () => {
         const first = rec.addSetup(config('s1'), CHANNELS)
         rec.addSetup(config('s2'), CHANNELS)
         expect(internals._setup).toBe(first)
+    })
+})
+
+describe('a missing trend service', () => {
+    /** Give the recording a data cache without a shared buffer, the way a page without isolation gets one. */
+    const withoutSharedCache = (rec: EegRecording) => {
+        Object.defineProperty(rec, 'dataCache', { value: { outputSignalSamplingRates: [] } })
+    }
+
+    test('names cross-origin isolation when the page is not isolated', async () => {
+        vi.stubGlobal('crossOriginIsolated', false)
+        const warn = vi.spyOn(Log, 'warn').mockImplementation(() => undefined)
+        const { rec, internals } = makeRecording()
+        internals._trendService = null
+        withoutSharedCache(rec)
+        await internals._initTrendService()
+        expect(internals._trendService).toBeNull()
+        expect(internals._trendServiceUnavailable).toContain('cross-origin isolated')
+        expect(warn).toHaveBeenCalledTimes(1)
+
+        // A later request repeats the reason rather than suggesting the service is on its way.
+        internals._trendsEnabled.add('spectrogram')
+        internals._buildSpectrogramTrends()
+        expect(warn).toHaveBeenLastCalledWith(expect.stringContaining('cross-origin isolated'), expect.anything())
+        expect(warn.mock.calls.flat().join(' ')).not.toContain('not initialised')
+        warn.mockRestore()
+        vi.unstubAllGlobals()
+    })
+
+    test('does not blame isolation on an isolated page', async () => {
+        vi.stubGlobal('crossOriginIsolated', true)
+        const warn = vi.spyOn(Log, 'warn').mockImplementation(() => undefined)
+        const { rec, internals } = makeRecording()
+        internals._trendService = null
+        withoutSharedCache(rec)
+        await internals._initTrendService()
+        expect(internals._trendServiceUnavailable).toBe('the signal cache is not backed by shared memory')
+        warn.mockRestore()
+        vi.unstubAllGlobals()
+    })
+
+    test('is only a debug note while setup has not reached it', () => {
+        const warn = vi.spyOn(Log, 'warn').mockImplementation(() => undefined)
+        const debug = vi.spyOn(Log, 'debug').mockImplementation(() => undefined)
+        const { internals } = makeRecording()
+        internals._trendService = null
+        internals._trendsEnabled.add('ratio')
+        internals._buildRatioTrends()
+        expect(warn).not.toHaveBeenCalled()
+        expect(debug).toHaveBeenCalledWith(expect.stringContaining('still being set up'), expect.anything())
+        warn.mockRestore()
+        debug.mockRestore()
+    })
+})
+
+describe('overlapping epochs', () => {
+    type StepTrend = { epochLength: number, epochStep: number, samplingRate: number }
+
+    test('a configured step reaches the trend, which then yields a value per step', () => {
+        const { internals } = makeRecording({
+            trends: { spectrogram: { epochLength: 3, epochStep: 0.5 } },
+        })
+        internals._trendsEnabled.add('spectrogram')
+        internals._buildSpectrogramTrends()
+        const trend = internals._trends.get('spectrogram-left') as StepTrend
+        expect([trend.epochLength, trend.epochStep, trend.samplingRate]).toEqual([3, 0.5, 2])
+    })
+
+    test('no step configured means back-to-back epochs', () => {
+        const { internals } = makeRecording({ trends: { spectrogram: { epochLength: 3 } } })
+        internals._trendsEnabled.add('spectrogram')
+        internals._buildSpectrogramTrends()
+        const trend = internals._trends.get('spectrogram-left') as StepTrend
+        expect([trend.epochStep, trend.samplingRate]).toEqual([3, 1 / 3])
+    })
+
+    test('the first computation covers only whole windows of the cached signal', () => {
+        const compute = vi.spyOn(EegSpectrogramTrend.prototype, 'computeTrend').mockResolvedValue(undefined)
+        const { internals } = makeRecording({
+            trends: { spectrogram: { epochLength: 3, epochStep: 0.5 } },
+        })
+        internals._signalCacheStatus = [0, 10.2]
+        internals._trendsEnabled.add('spectrogram')
+        internals._buildSpectrogramTrends()
+        // The last window that fits in 10.2 s starts at 7 and ends at 10.
+        expect(compute).toHaveBeenCalledWith([0, 10])
+        compute.mockRestore()
     })
 })
