@@ -292,6 +292,12 @@ describe('ensureTrendSetup and clearTrendTypes', () => {
 })
 
 describe('_setupTrend and _extendTrendsToCache', () => {
+    // A recording long enough that the cached spans below end before it does.
+    const makeLongRecording = (totalDuration = 100) => {
+        const made = makeRecording()
+        made.rec.totalDuration = totalDuration
+        return made
+    }
     const trendStub = (name: string, epochLength: number, computedUpToSec = 0, epochStep = epochLength) => ({
         name, epochLength, epochStep, computedUpToSec,
         addEventListener: vi.fn(),
@@ -302,14 +308,14 @@ describe('_setupTrend and _extendTrendsToCache', () => {
 
     test('the initial compute is aligned down to a whole epoch', () => {
         // A partial epoch computed as a whole one reports a value over less signal than it claims.
-        const { internals } = makeRecording()
+        const { internals } = makeLongRecording()
         const trend = trendStub('t', 5)
         internals._setupTrend(trend, 47)
         expect(trend.computeTrend).toHaveBeenCalledWith([0, 45])
     })
 
     test('nothing is computed before a whole epoch is available', () => {
-        const { internals } = makeRecording()
+        const { internals } = makeLongRecording()
         const trend = trendStub('t', 5)
         internals._setupTrend(trend, 4)
         expect(trend.computeTrend).not.toHaveBeenCalled()
@@ -318,7 +324,7 @@ describe('_setupTrend and _extendTrendsToCache', () => {
     test('a stale trend of the same name is replaced rather than refused', () => {
         // `addTrend` refuses a duplicate name, so a rebuild that did not remove the old one first
         // would silently keep computing into the trend it meant to replace.
-        const { internals } = makeRecording()
+        const { internals } = makeLongRecording()
         const first = trendStub('t', 5)
         const second = trendStub('t', 5)
         internals._setupTrend(first, 10)
@@ -328,7 +334,7 @@ describe('_setupTrend and _extendTrendsToCache', () => {
     })
 
     test('extending computes only the span past what the trend already holds', () => {
-        const { internals } = makeRecording()
+        const { internals } = makeLongRecording()
         const trend = trendStub('t', 5, 20)
         internals._trends.set('t', trend)
         internals._extendTrendsToCache(37)
@@ -336,7 +342,7 @@ describe('_setupTrend and _extendTrendsToCache', () => {
     })
 
     test('a trend already covering the cached span is left alone', () => {
-        const { internals } = makeRecording()
+        const { internals } = makeLongRecording()
         const trend = trendStub('t', 5, 35)
         internals._trends.set('t', trend)
         internals._extendTrendsToCache(37)
@@ -345,7 +351,7 @@ describe('_setupTrend and _extendTrendsToCache', () => {
 
     test('overlapping epochs extend to the end of the last whole window', () => {
         // 3 s windows every 0.5 s: with 12.2 s cached the last whole window ends at 12.
-        const { internals } = makeRecording()
+        const { internals } = makeLongRecording()
         const trend = trendStub('t', 3, 10, 0.5)
         internals._trends.set('t', trend)
         internals._extendTrendsToCache(12.2)
@@ -353,7 +359,7 @@ describe('_setupTrend and _extendTrendsToCache', () => {
     })
 
     test('each trend is extended on its own epoch grid', () => {
-        const { internals } = makeRecording()
+        const { internals } = makeLongRecording()
         const coarse = trendStub('coarse', 10, 0)
         const fine = trendStub('fine', 2, 0)
         internals._trends.set('coarse', coarse)
@@ -361,6 +367,30 @@ describe('_setupTrend and _extendTrendsToCache', () => {
         internals._extendTrendsToCache(37)
         expect(coarse.computeTrend).toHaveBeenCalledWith([0, 30])
         expect(fine.computeTrend).toHaveBeenCalledWith([0, 36])
+    })
+
+    test('the final partial epochs are computed once the cache reaches the end of the recording', () => {
+        // 47 s in 5 s epochs: the last epoch starts at 45 and is partial. Stopping at the last whole epoch would
+        // leave the trend short of the end of the recording for good, since no more signal arrives.
+        const { internals } = makeLongRecording(47)
+        const trend = trendStub('t', 5, 45)
+        internals._trends.set('t', trend)
+        internals._extendTrendsToCache(47)
+        expect(trend.computeTrend).toHaveBeenCalledWith([45, 47])
+    })
+
+    test('a fully cached recording is computed to its end on setup', () => {
+        const { internals } = makeLongRecording(12.2)
+        const trend = trendStub('t', 3, 0, 0.5)
+        internals._setupTrend(trend, 12.2)
+        expect(trend.computeTrend).toHaveBeenCalledWith([0, 12.2])
+    })
+
+    test('a fully cached recording shorter than one epoch still gets its single partial epoch', () => {
+        const { internals } = makeLongRecording(4)
+        const trend = trendStub('t', 5)
+        internals._setupTrend(trend, 4)
+        expect(trend.computeTrend).toHaveBeenCalledWith([0, 4])
     })
 })
 

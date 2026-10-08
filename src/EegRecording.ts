@@ -27,6 +27,7 @@ import type {
     BiosignalMontage,
     BiosignalMontageTemplate,
     BiosignalSetup,
+    BiosignalTrend,
     BiosignalTrendType,
     ConfigBiosignalSetup,
     ConfigMapChannels,
@@ -437,14 +438,13 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
             this._extendTrendsToCache(this._signalCacheStatus[1])
         }, this.id)
         const epochLength = trend.epochLength
-        // The end of the last whole epoch in the cached signal, so no epoch is computed from part of its window.
-        const alignedEnd = trendCoveredEnd(initialCachedEnd, epochLength, trend.epochStep)
+        const alignedEnd = this._trendComputeEnd(trend, initialCachedEnd)
         Log.debug(
             `[trend] _setupTrend '${trend.name}' epochLen=${epochLength}s step=${trend.epochStep}s ` +
             `initialCached=${initialCachedEnd}s alignedEnd=${alignedEnd}s`,
             SCOPE
         )
-        if (alignedEnd >= epochLength) {
+        if (alignedEnd > 0) {
             trend.computeTrend([0, alignedEnd]).catch((error: unknown) => {
                 Log.warn(`Initial compute of trend '${trend.name}' failed: ${asError(error).message}`, SCOPE)
             })
@@ -453,15 +453,15 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
 
     /**
      * Extend all registered trends to cover newly cached signal up to `cachedEndSec`.
-     * Only computes complete epochs (whole windows within the cached signal); skips trends that are
-     * already up to date or currently computing.
+     * Computes whole epochs within the cached signal, and the final partial ones once the cache reaches the end of
+     * the recording; skips trends that are already up to date.
      */
     protected _extendTrendsToCache (cachedEndSec: number) {
         if (!this._trends.size) {
             return
         }
         for (const trend of this._trends.values()) {
-            const alignedEnd = trendCoveredEnd(cachedEndSec, trend.epochLength, trend.epochStep)
+            const alignedEnd = this._trendComputeEnd(trend, cachedEndSec)
             const computing = (trend as unknown as { _computing?: boolean })._computing
             Log.debug(
                 `[trend] _extendTrendsToCache '${trend.name}' computing=${computing} ` +
@@ -475,6 +475,20 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
                 Log.warn(`Extend of trend '${trend.name}' failed: ${asError(error).message}`, SCOPE)
             })
         }
+    }
+
+    /**
+     * The end, in seconds, up to which `trend` may be computed with signal cached up to `cachedEndSec`: the end of the
+     * last whole epoch in the cache, or the end of the recording once the cache reaches it. Without the second case
+     * the final epochs, which the step leaves partial, are never computed and the trend stops short of the end.
+     * @param trend - The trend to compute.
+     * @param cachedEndSec - End of the cached signal in seconds.
+     */
+    protected _trendComputeEnd (trend: BiosignalTrend, cachedEndSec: number) {
+        if (this.totalDuration > 0 && cachedEndSec >= this.totalDuration) {
+            return this.totalDuration
+        }
+        return trendCoveredEnd(cachedEndSec, trend.epochLength, trend.epochStep)
     }
 
     /**
