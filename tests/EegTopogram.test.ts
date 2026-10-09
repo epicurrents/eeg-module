@@ -86,17 +86,61 @@ describe('EegTopogram', () => {
         expect(Math.max(...radii)).toBeLessThan(1.35)
     })
 
-    test('electrodePixels applies the topomap layout scaling, project does not', () => {
-        // The layout pulls the temporal ring back onto the head circle, which is where a reader of
-        // MNE topomaps expects it; the pure projection leaves it a tenth of a radius outside.
-        const temporal = LABELS.indexOf('T8')
-        const projected = topogram.project(topogram.positions[temporal])
-        const drawn = topogram.electrodePixels()[temporal]
-        expect(projected.radius).toBeGreaterThan(1)
-        expect(drawn.radius).toBeLessThan(projected.radius)
-        // Both stay on the same side of the head; the scaling is radial, not a different projection.
+    test('electrodePixels are the projections, so every marker sits on its own value', () => {
+        const pixels = topogram.electrodePixels()
+        topogram.positions.forEach((position, i) => {
+            expect(pixels[i]).toEqual(topogram.project(position))
+        })
+    })
+
+    test('lays the 10-20 outer ring out evenly all round, front and back alike', () => {
+        // About the head frame's +z the ring is tilted: the frontopolar pair projected a tenth of a radius
+        // outside the circle and the occipital pair a tenth inside, and Fz sat half as far out again as Pz.
+        const radius = (label: string) => topogram.project(topogram.positions[LABELS.indexOf(label)]).radius
+        const ring = ['Fp1', 'Fp2', 'F7', 'F8', 'T7', 'T8', 'P7', 'P8', 'O1', 'O2'].map(radius)
+        expect(Math.max(...ring) - Math.min(...ring)).toBeLessThan(0.1)
+        expect(Math.min(...ring)).toBeGreaterThan(1)
+        expect(Math.abs(radius('Fp1') - radius('O1'))).toBeLessThan(0.02)
+        expect(Math.abs(radius('Fz') - radius('Pz'))).toBeLessThan(0.02)
+        expect(radius('Cz')).toBeLessThan(0.03)
+    })
+
+    test('a wider extent carries the field out to the inferior temporal chain', () => {
+        // The IFCN array: the 10-20 electrodes plus F9/F10, T9/T10 and P9/P10, which sit outside the head circle.
+        const inferior = ['F9', 'F10', 'T9', 'T10', 'P9', 'P10']
+        const labels = [...LABELS, ...inferior]
+        const ifcn = resolveMontageElectrodes(labels).positions
+        const confined = EegTopogram.forPositions(ifcn, RESOLUTION)
+        const full = EegTopogram.forPositions(ifcn, RESOLUTION, undefined, 1.4)
+        expect(full.extent).toBe(1.4)
+        // A smooth field, as in the knot test above, so the nearest pixel reads its electrode's value.
+        const values = Float32Array.from(ifcn.map(position => position.z*20))
+        const field = full.interpolate(values)
+        const pixelOf = (topogram: EegTopogram, i: number) => {
+            const pixel = topogram.project(ifcn[i])
+            const [x, y] = [Math.round(pixel.x), Math.round(pixel.y)]
+            const onGrid = x >= 0 && y >= 0 && x < RESOLUTION && y < RESOLUTION
+            return onGrid && topogram.mask[y*RESOLUTION + x] === 1 ? y*RESOLUTION + x : -1
+        }
+        for (const label of inferior) {
+            const i = labels.indexOf(label)
+            // Confined, the electrode lies off the field's disc; at the wider extent its own value is drawn there.
+            expect(pixelOf(confined, i)).toBe(-1)
+            const index = pixelOf(full, i)
+            expect(index).toBeGreaterThanOrEqual(0)
+            expect(Math.abs(field[index] - values[i])).toBeLessThan(0.06)
+        }
+    })
+
+    test('the extent changes where a marker is drawn on the grid, not its radius in head radii', () => {
+        const full = EegTopogram.forPositions(positions, RESOLUTION, undefined, 1.4)
+        const cz = positions[LABELS.indexOf('Cz')]
+        const t8 = positions[LABELS.indexOf('T8')]
+        expect(full.project(t8).radius).toBeCloseTo(topogram.project(t8).radius, 10)
         const centre = RESOLUTION/2 - 0.5
-        expect(Math.sign(drawn.x - centre)).toBe(Math.sign(projected.x - centre))
+        const offset = (topogram: EegTopogram) => topogram.project(t8).x - centre
+        expect(offset(full)).toBeCloseTo(offset(topogram)/1.4, 6)
+        expect(full.project(cz).radius).toBeCloseTo(topogram.project(cz).radius, 10)
     })
 
     test('scales an all-zero frame without dividing by zero', () => {

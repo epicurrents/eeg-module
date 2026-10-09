@@ -7,7 +7,8 @@
  *
  * Grid points are projected onto the unit sphere with the *azimuthal-equidistant* projection MNE uses for topomap
  * layouts, i.e. the 2D radius is the polar angle. An orthographic projection (`z = sqrt(1 - r^2)`) is the obvious
- * mistake and renders a nearly flat, wrong map.
+ * mistake and renders a nearly flat, wrong map. The pole is the axis of the 10-20 outer ring rather than the head
+ * frame's `+z`; see `projectionBasis`.
  *
  * Use is two-phase, because the interpolation operator depends only on electrode geometry:
  * ```
@@ -23,6 +24,7 @@
  */
 
 import { DEFAULT_DIVERGING_RAMP, sampleRamp } from './colorRamp'
+import { getElectrodePosition } from './electrodes'
 import type { DivergingRamp, EegTopogramInterface, Isoline2D, Point3D } from '#types/topography'
 
 /** Stiffness parameter `m` of the spline; 4 is the MNE/Perrin default. */
@@ -126,6 +128,50 @@ const normalize = (p: Point3D): [number, number, number] => {
     return [p.x/r, p.y/r, p.z/r]
 }
 
+type Vector = [number, number, number]
+
+/** Axes of the 2D projection in head coordinates: image right, image up and the pole. */
+type ProjectionBasis = { anterior: Vector, pole: Vector, right: Vector }
+
+/** The 10-20 outer ring, whose axis is the projection's pole. */
+const OUTER_RING = ['Fpz', 'T7', 'Oz', 'T8']
+
+const unit = (v: Vector): Vector => {
+    const r = Math.hypot(v[0], v[1], v[2]) || 1
+    return [v[0]/r, v[1]/r, v[2]/r]
+}
+const cross = (a: Vector, b: Vector): Vector => [
+    a[1]*b[2] - a[2]*b[1], a[2]*b[0] - a[0]*b[2], a[0]*b[1] - a[1]*b[0],
+]
+const dot3 = (a: ArrayLike<number>, b: ArrayLike<number>) => a[0]*b[0] + a[1]*b[1] + a[2]*b[2]
+
+/**
+ * Axes of the projection about a sphere origin: the pole along the axis of the 10-20 outer ring, image right towards
+ * the subject's right and image up towards the nose.
+ *
+ * The head frame's `+z` is the obvious pole and a tilted one. Head coordinates are anchored to the nasion and the
+ * pre-auricular points, while the outer ring runs a tenth of the way up from nasion and inion, and the inion sits
+ * higher than the nasion: Oz is about three centimetres above Fpz. About `+z` the ring is tilted some eight degrees,
+ * so the frontopolar electrodes project well outside the head circle while the occipital ones fall inside it, and the
+ * midline is stretched in front and compressed behind (Fz twice as far out as Pz is in). About the ring's own axis
+ * the outer ring lands at one radius all round, Fz and Pz mirror each other and Cz sits at the centre, which is the
+ * symmetry a reader of 10-20 topograms expects. The ring is read from the bundled table, so the pole is the same for
+ * every montage given in its head frame, whichever electrodes the montage itself carries.
+ */
+const projectionBasis = (c: Point3D): ProjectionBasis => {
+    const ring = OUTER_RING.map(label => {
+        const p = getElectrodePosition(label)!
+        return normalize({ x: p.x - c.x, y: p.y - c.y, z: p.z - c.z })
+    })
+    // The normal of the plane through the four directions: front-to-back crossed with left-to-right points up.
+    const frontBack: Vector = [ring[0][0] - ring[2][0], ring[0][1] - ring[2][1], ring[0][2] - ring[2][2]]
+    const leftRight: Vector = [ring[1][0] - ring[3][0], ring[1][1] - ring[3][1], ring[1][2] - ring[3][2]]
+    const pole = unit(cross(frontBack, leftRight))
+    // The head frame's x axis with its component along the pole removed, so right stays right.
+    const right = unit([1 - pole[0]*pole[0], -pole[0]*pole[1], -pole[0]*pole[2]])
+    return { anterior: cross(pole, right), pole, right }
+}
+
 /**
  * Least-squares centre of the sphere through a set of electrodes, when the electrodes can determine one.
  *
@@ -188,12 +234,14 @@ export default class EegTopogram implements EegTopogramInterface {
      * @param positions - Electrode positions in head coordinates.
      * @param resolution - Side length of the square output grid in pixels.
      * @param origin - Center of the head sphere; defaults to a least-squares fit through `positions`, or the anatomical default where they cannot determine one.
+     * @param extent - Radius the grid reaches, in head radii; 1 confines the field to the head circle (see `extent`).
      */
-    static forPositions (positions: Point3D[], resolution = 200, origin?: Point3D) {
+    static forPositions (positions: Point3D[], resolution = 200, origin?: Point3D, extent = 1) {
         const key = JSON.stringify([
             positions.map(p => [p.x, p.y, p.z]),
             resolution,
             origin ? [origin.x, origin.y, origin.z] : null,
+            extent,
         ])
         const cached = CACHE.get(key)
         if (cached) {
@@ -202,7 +250,7 @@ export default class EegTopogram implements EegTopogramInterface {
             CACHE.set(key, cached)
             return cached
         }
-        const topogram = new EegTopogram(positions, resolution, origin)
+        const topogram = new EegTopogram(positions, resolution, origin, DEFAULT_ALPHA, extent)
         CACHE.set(key, topogram)
         while (CACHE.size > CACHE_SIZE) {
             CACHE.delete(CACHE.keys().next().value as string)
@@ -226,7 +274,7 @@ export default class EegTopogram implements EegTopogramInterface {
 
     /**
      * Symmetric limit for the colour scale, i.e. the largest absolute value in a frame.
-     * @param field - Per-pixel values from `interpolate`.
+     * @param field - Per-pixel values from `interpolate`, or the electrode values themselves for a limit that does not depend on how much of the field is drawn.
      */
     static limitOf (field: ArrayLike<number>) {
         let lim = 0
@@ -239,12 +287,16 @@ export default class EegTopogram implements EegTopogramInterface {
         return lim
     }
 
-    /** True for grid pixels inside the head circle. */
+    /** True for grid pixels inside the field's disc, of radius `extent`. */
     protected _mask: Uint8Array
     protected _nChannels: number
     /** Row-major `nPixels` x `nChannels` interpolation operator. */
     protected _operator: Float32Array
-    /** Center of the fitted head sphere, i.e. the pole of the projection. */
+    /** Axes of the projection about `_origin`; see `projectionBasis`. */
+    protected _basis: ProjectionBasis
+    /** Radius the grid's inscribed disc reaches, in head radii. */
+    protected _extent: number
+    /** Center of the fitted head sphere, i.e. the centre of the projection. */
     protected _origin: Point3D
     /** Electrode positions in head coordinates, in the order values are supplied. */
     protected _positions: Point3D[]
@@ -257,18 +309,22 @@ export default class EegTopogram implements EegTopogramInterface {
      * @param origin - Center of the head sphere; defaults to a least-squares fit through `positions`. Pass the origin
      *                 a surface field map of the same montage was baked around, or the two views disagree.
      * @param alpha - Ridge regularization; MNE's default is 1e-5.
+     * @param extent - Radius the grid reaches, in head radii; 1 confines the field to the head circle (see `extent`).
      */
     constructor (
         positions: Point3D[],
         resolution = 200,
         origin?: Point3D,
         alpha = DEFAULT_ALPHA,
+        extent = 1,
     ) {
         const n = positions.length
+        this._extent = extent > 0 ? extent : 1
         this._resolution = resolution
         this._nChannels = n
         const c = origin ?? fitSphereOrigin(positions)
         this._origin = c
+        this._basis = projectionBasis(c)
         this._positions = positions
         const from = positions.map(p => normalize({ x: p.x - c.x, y: p.y - c.y, z: p.z - c.z }))
         const factors = gFactors()
@@ -309,12 +365,12 @@ export default class EegTopogram implements EegTopogramInterface {
                     continue
                 }
                 this._mask[idx] = 1
-                // Inverse azimuthal-equidistant projection: the 2D radius is the polar angle.
-                const pol = rad*Math.PI/2
+                // Inverse azimuthal-equidistant projection: the 2D radius is the polar angle from the pole.
+                const pol = rad*this._extent*Math.PI/2
                 const az = Math.atan2(gy, gx)
-                const to = [
-                    Math.sin(pol)*Math.cos(az), Math.sin(pol)*Math.sin(az), Math.cos(pol),
-                ]
+                const along = [Math.sin(pol)*Math.cos(az), Math.sin(pol)*Math.sin(az), Math.cos(pol)]
+                const { anterior, pole, right } = this._basis
+                const to = [0, 1, 2].map(i => along[0]*right[i] + along[1]*anterior[i] + along[2]*pole[i])
                 for (let j = 0; j < n; j++) {
                     row[j] = legendreSum(dot(to, from[j]), factors)
                 }
@@ -330,6 +386,18 @@ export default class EegTopogram implements EegTopogramInterface {
         }
     }
 
+    /**
+     * Radius the field reaches, in head radii, where 1 is the head circle.
+     *
+     * At 1 the field is confined to the head model and the outer electrode ring sits just past its edge. A larger
+     * extent carries it out to electrodes below the sphere's equator — the inferior temporal chain of the IFCN array
+     * reaches about 1.3 — which the spline is fitted to as knots like any other, so the field there is interpolated
+     * between measured values rather than extrapolated past them. The grid keeps its resolution, so a larger extent
+     * spreads the same pixels over more of the head.
+     */
+    get extent () {
+        return this._extent
+    }
     get mask () {
         return this._mask
     }
@@ -351,32 +419,15 @@ export default class EegTopogram implements EegTopogramInterface {
     /**
      * Where to draw a marker for every electrode of this montage, in the order values are supplied.
      *
-     * These are *layout* positions, not the pure inverse projection `project` gives. They additionally scale each
-     * electrode's offset from the centre by its distance from the sphere origin, relative to the mean electrode
-     * distance — which is what `mne.channels.layout._auto_topomap_coords` does, and reproduces MNE's own topomap
-     * layout to within a quarter of a percent.
-     *
-     * The distinction matters and the difference is small but visible. `project` is directional, so the whole outer
-     * ring of a 10-20 montage lands a tenth of a radius beyond the head circle; the layout scaling pulls the temporal,
-     * parietal and occipital electrodes back onto the circle, where a reader of MNE topomaps expects them, at the cost
-     * of a few pixels between a marker and the exact grid point its own value occupies. Frontopolar electrodes stay
-     * outside the circle in either convention — a 10-20 montage in head coordinates has no circle that contains it,
-     * and MNE draws them outside too — so a caller must leave margin around the disc rather than clip them away.
+     * Each marker is the electrode's own projection, the pixel where the field takes its value. MNE's topomap layout
+     * additionally scales each position by its distance from the sphere origin, which suits MNE, whose topomap
+     * interpolates in 2D over those same scaled positions; under a 3D spline, which knows only directions, it moves a
+     * marker off its own value, by a tenth of the head radius for the frontopolar and temporal pairs of a 10-20 cap.
+     * The outer ring lands on or just outside the head circle, by as much as it wraps below the sphere's equator, so a
+     * caller must leave margin around the disc rather than clip it away.
      */
     electrodePixels () {
-        const c = this._origin
-        const distances = this._positions.map(p => Math.hypot(p.x - c.x, p.y - c.y, p.z - c.z))
-        const headRadius = distances.reduce((sum, d) => sum + d, 0)/(distances.length || 1) || 1
-        const centre = this._resolution/2 - 0.5
-        return this._positions.map((position, i) => {
-            const projected = this.project(position)
-            const scale = distances[i]/headRadius
-            return {
-                radius: projected.radius*scale,
-                x: centre + (projected.x - centre)*scale,
-                y: centre + (projected.y - centre)*scale,
-            }
-        })
+        return this._positions.map(position => this.project(position))
     }
 
     /**
@@ -465,11 +516,9 @@ export default class EegTopogram implements EegTopogramInterface {
      * positions any other way — a layout table, an orthographic projection — puts them subtly off the field they
      * belong to, which is worse than not drawing them.
      *
-     * This is purely directional, whereas MNE's topomap layout additionally scales each position by its distance from
-     * the sphere origin. That scaling is self-consistent for MNE, whose topomap interpolates in 2D over those same
-     * scaled positions, but it is not for a 3D spline, which knows only directions. Either way part of the outer
-     * electrode ring lands beyond the head circle, as it does in MNE; there is simply no radius at which a 10-20
-     * montage in head coordinates fits inside its own outline.
+     * This is purely directional, about the pole `projectionBasis` gives, and `electrodePixels` draws the markers with
+     * it unchanged. The 10-20 outer ring lies at or a little below the sphere's equator and so lands on or just outside
+     * the head circle, evenly all round.
      *
      * @param point - Position in head coordinates, in meters.
      * @returns Pixel coordinates on the `resolution` x `resolution` grid, and the projected radius, where 1 is the
@@ -477,12 +526,14 @@ export default class EegTopogram implements EegTopogramInterface {
      */
     project (point: Point3D) {
         const c = this._origin
-        const [ux, uy, uz] = normalize({ x: point.x - c.x, y: point.y - c.y, z: point.z - c.z })
+        const d = normalize({ x: point.x - c.x, y: point.y - c.y, z: point.z - c.z })
+        const { anterior, pole, right } = this._basis
+        const [ux, uy, uz] = [dot3(d, right), dot3(d, anterior), dot3(d, pole)]
         const pol = Math.acos(uz < -1 ? -1 : uz > 1 ? 1 : uz)
         const radius = pol/(Math.PI/2)
         const az = Math.atan2(uy, ux)
-        const gx = radius*Math.cos(az)
-        const gy = radius*Math.sin(az)
+        const gx = radius/this._extent*Math.cos(az)
+        const gy = radius/this._extent*Math.sin(az)
         return {
             radius,
             x: (gx + 1)*this._resolution/2 - 0.5,
@@ -491,7 +542,7 @@ export default class EegTopogram implements EegTopogramInterface {
     }
 
     /**
-     * Interpolate and write straight into an RGBA buffer using a diverging ramp. Pixels outside the head circle are
+     * Interpolate and write straight into an RGBA buffer using a diverging ramp. Pixels outside the field's disc are
      * left fully transparent.
      *
      * Named for what it produces rather than for drawing: this class does no rendering, it only fills a pixel buffer

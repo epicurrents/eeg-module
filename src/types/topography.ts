@@ -181,7 +181,9 @@ export interface EegSurfaceFieldMapInterface {
  * Precomputed spherical-spline topogram for a fixed electrode montage.
  */
 export interface EegTopogramInterface {
-    /** True for grid pixels inside the head circle. */
+    /** Radius the field reaches, in head radii, where 1 is the head circle. */
+    extent: number
+    /** True for grid pixels inside the field's disc, of radius `extent`. */
     mask: Uint8Array
     /** Number of electrodes the operator was built for, i.e. the length of `positions`. */
     nChannels: number
@@ -194,8 +196,8 @@ export interface EegTopogramInterface {
     /**
      * Where to draw a marker for every electrode, in the order values are supplied.
      *
-     * These are layout positions and not simply `project` applied to each electrode; the implementation explains how
-     * the two differ and why.
+     * Each is `project` applied to the electrode, the pixel where the field takes its value; the implementation
+     * explains why MNE's distance-scaled layout is not used.
      */
     electrodePixels (): { radius: number, x: number, y: number }[]
     /**

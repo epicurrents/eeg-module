@@ -19,7 +19,8 @@ import type { DivergingRamp, Rgb } from '#types/topography'
  * Default ramp: blue to neutral to red.
  *
  * The poles stay separable under protanopia and deuteranopia (OKLab dE 25 between them), so the sign of the field is
- * never carried by a red/green distinction.
+ * never carried by a red/green distinction. They are dark (OKLab L 0.44 and 0.48) because a pole's lightness caps how
+ * intense the strongest value can look: the ramp blends to it from a near-white neutral.
  *
  * `gamma` favours the diffuse case, where lifting the mid range is what makes low-amplitude structure visible at all.
  * Do not read it as the better setting generally: a consumer whose subject is focal activity wants 1, because
@@ -27,9 +28,9 @@ import type { DivergingRamp, Rgb } from '#types/topography'
  * Consumers are expected to pass their own ramp; this is a starting point, not a recommendation.
  */
 export const DEFAULT_DIVERGING_RAMP: DivergingRamp = {
-    negative: [0.169, 0.373, 0.816],   // #2b5fd0
+    negative: [0.082, 0.278, 0.714],   // #1547b6
     neutral:  [0.941, 0.937, 0.925],   // #f0efec
-    positive: [0.812, 0.184, 0.184],   // #cf2f2f
+    positive: [0.694, 0.0, 0.075],     // #b10013
     gamma: 0.55,
 }
 
