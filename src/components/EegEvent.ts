@@ -19,8 +19,8 @@ import vocabulary from '#components/vocabulary/eeg-events.json'
 const SCOPE = 'EegEvent'
 
 /**
- * The EEG vocabulary: activation procedures and stimuli, and the finding categories the viewer names. Stacked on
- * the shared acquisition set of `GenericBiosignalEvent`.
+ * The EEG vocabulary: the activation procedures and stimuli a technologist applies. Stacked on the shared acquisition
+ * set of `GenericBiosignalEvent`. Findings are coded in HED-SCORE, not here.
  */
 const _CODED_EVENTS = codedEventsFromVocabulary(vocabulary as CodedEventVocabulary)
 /** The merged view, built on first access. Its category objects are live, so it never goes stale. */
@@ -28,9 +28,8 @@ let _mergedCodedEvents: CodedEventTable | null = null
 
 export default class EegEvent extends GenericBiosignalEvent implements EegResourceEvent {
     /**
-     * The shared acquisition set followed by the EEG categories: ACTIVATION (`epicurrents.eeg`, with DICOM CID 3035
-     * and IEEE MDC crosswalks where the standards have a term) and the finding categories, from
-     * `src/components/vocabulary/eeg-events.json`.
+     * The shared acquisition set followed by the EEG category ACTIVATION (`epicurrents.eeg`, with DICOM CID 3035, IEEE
+     * MDC and HED-SCORE crosswalks where the standards have a term), from `src/components/vocabulary/eeg-events.json`.
      */
     static get CODED_EVENTS (): CodedEventTable {
         if (!_mergedCodedEvents) {

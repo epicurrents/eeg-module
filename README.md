@@ -42,7 +42,7 @@ A montage added before the buffer exists is published unwired, and the activatio
 
 ## Annotations
 
-`EegEvent.CODED_EVENTS` is core's shared acquisition vocabulary followed by this module's own categories, loaded from [src/components/vocabulary/eeg-events.json](src/components/vocabulary/eeg-events.json). The ACTIVATION category is the acquisition half — activation procedures and sensory stimuli — and is what a consuming platform registers as the `epicurrents.eeg` vocabulary; the finding categories stay viewer-side.
+`EegEvent.CODED_EVENTS` is core's shared acquisition vocabulary followed by this module's own category, loaded from [src/components/vocabulary/eeg-events.json](src/components/vocabulary/eeg-events.json). The module adds ACTIVATION alone, the activation procedures and sensory stimuli, which a consuming platform registers as the `epicurrents.eeg` vocabulary. The module ships no findings: a pattern a reader names is coded in HED-SCORE.
 
 The `events` setter applies the deployment's `ignorePatterns` and `convertPatterns` before storing anything, so a site's own annotation labels can be suppressed or rewritten without touching a decoder. Ignoring is checked first, and an ignored event is never converted.
 

@@ -12,27 +12,34 @@ import vocabulary from '../src/components/vocabulary/eeg-events.json'
 const CATEGORIES = Object.keys(vocabulary.categories)
 
 describe('EegEvent', () => {
-    test('CODED_EVENTS contains background alpha', () => {
-        const ev = EegEvent.getEventForCode('EEG_BKG_ALPHA')
+    test('CODED_EVENTS contains hyperventilation', () => {
+        const ev = EegEvent.getEventForCode('EEG_ACT_HV')
         expect(ev).not.toBeNull()
-        expect(ev?.name).toContain('alpha')
+        expect(ev?.name).toBe('Hyperventilation')
     })
 
     test('getEventForCode recognizes dicom code', () => {
-        const ev = EegEvent.getEventForCode('MDC/2:23592', 'dicom')
+        const ev = EegEvent.getEventForCode('MDC/2:24320', 'dicom')
         expect(ev).not.toBeNull()
-        expect(ev?.code).toBe('EEG_BKG_ALPHA')
+        expect(ev?.code).toBe('EEG_ACT_EC')
+    })
+
+    test('getEventForCode recognizes hed code', () => {
+        const photic = EegEvent.getEventForCode('Intermittent-photic-stimulation/10 Hz', 'hed')
+        expect(photic?.code).toBe('EEG_ACT_PHOTIC_10HZ')
+        expect(EegEvent.getEventForCode('Speak', 'hed')?.code).toBe('BIO_OBS_TALKING')
     })
 
     test('getEventForLabel finds by name', () => {
-        const ev = EegEvent.getEventForLabel('Background alpha activity')
+        const ev = EegEvent.getEventForLabel('Eyes closed')
         expect(ev).not.toBeNull()
-        expect(ev?.code).toBe('EEG_BKG_ALPHA')
+        expect(ev?.code).toBe('EEG_ACT_EC')
     })
 
-    test('lists the shared categories before its own', () => {
+    test('lists the shared categories before its own, which are activation only', () => {
+        expect(CATEGORIES).toEqual(['ACTIVATION'])
         expect(Object.keys(EegEvent.CODED_EVENTS)).toEqual([
-            'TECHNICAL', 'INTERVENTION', 'OBSERVATION', 'ENVIRONMENT', 'PHYSIOLOGY', ...CATEGORIES,
+            'TECHNICAL', 'INTERVENTION', 'OBSERVATION', 'ENVIRONMENT', ...CATEGORIES,
         ])
     })
 
@@ -51,19 +58,15 @@ describe('EegEvent', () => {
         expect(EegEvent.getEventForCode('EEG_ACT_STIM_NOXIOUS')?.meta).toHaveProperty('method')
     })
 
-    test('carries the crosswalk corrections checked against CID 3035', () => {
-        expect(EegEvent.getEventForCode('EEG_ART_EYE_MOVEMENT')?.standardCodes).toEqual({
-            dicom: 'MDC/2:24040',
-            ieee: 'MDC_EEG_EXT_CRTX_EYE_MVMT_MULT',
-        })
-        expect(EegEvent.getEventForCode('EEG_ART_EXTERNAL')?.standardCodes?.dicom).toBe('MDC/2:24272')
-        expect(EegEvent.getEventForCode('EEG_EPI_POLYSPIKE')?.name).toBe('Polyspike')
-        expect(EegEvent.getEventForCode('EEG_TRN_SHARP')?.name).toBe('Sharply contoured wave')
+    test('carries no finding terms', () => {
+        for (const code of ['EEG_BKG_ALPHA', 'EEG_EPI_SPIKE', 'EEG_ART_EYE_BLINK', 'EEG_SLP_SPINDLE']) {
+            expect(EegEvent.getEventForCode(code), code).toBeNull()
+        }
     })
 
     test('extends an EEG category through the merged view', () => {
-        EegEvent.extendEvents('OTHER', { TEST_ONLY: { code: 'EEG_OTH_TEST_ONLY', name: 'Test only' } })
-        expect(EegEvent.getEventForCode('EEG_OTH_TEST_ONLY')?.name).toBe('Test only')
+        EegEvent.extendEvents('ACTIVATION', { TEST_ONLY: { code: 'EEG_ACT_TEST_ONLY', name: 'Test only' } })
+        expect(EegEvent.getEventForCode('EEG_ACT_TEST_ONLY')?.name).toBe('Test only')
     })
 
     test('fromTemplate creates an EegEvent instance', () => {
@@ -128,9 +131,9 @@ describe('eeg-events.json', () => {
         expect(vocabulary.version).toMatch(/^\d+\.\d+$/)
     })
 
-    test('scopes activation to acquisition and everything else to findings', () => {
+    test('scopes every category to acquisition', () => {
         for (const [name, category] of Object.entries(vocabulary.categories)) {
-            expect(category.scope, name).toBe(name === 'ACTIVATION' ? 'acquisition' : 'finding')
+            expect(category.scope, name).toBe('acquisition')
         }
     })
 
@@ -147,10 +150,10 @@ describe('eeg-events.json', () => {
         }
     })
 
-    test('uses only the three crosswalk columns', () => {
+    test('uses only the four crosswalk columns', () => {
         for (const { key, term } of terms) {
             for (const standard of Object.keys((term as { standardCodes?: object }).standardCodes ?? {})) {
-                expect(['dicom', 'ieee', 'snomed'], `${key}: ${standard}`).toContain(standard)
+                expect(['dicom', 'hed', 'ieee', 'snomed'], `${key}: ${standard}`).toContain(standard)
             }
         }
     })
