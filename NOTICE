@@ -49,9 +49,9 @@ https://github.com/hed-standard/hed-schemas (library_schemas/score)
 Full text: licenses/LICENSE.hed-score.txt
 
 `src/components/vocabulary/hed-score.json` is adapted from the merged HED-SCORE 2.1.0 schema (with HED 8.4.0) by
-`tools/hed-score/generate_index.py`. It is a modified version: reduced to the SCORE terms, their value placeholders
-and units, with descriptions whitespace-normalised and the whole rewritten as JSON. Term names, identifiers and
-descriptions are the schema's own.
+`tools/hed-score/generate_index.py`. It is a modified version: reduced to the SCORE terms and the artifact terms of
+the partnered HED standard, with their value placeholders and units, descriptions whitespace-normalised and the whole
+rewritten as JSON. Term names, identifiers and descriptions are the schema's own.
 
   Hermes et al. (2025). Scientific Data. https://doi.org/10.1038/s41597-025-05791-2
 

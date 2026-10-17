@@ -6,7 +6,7 @@
  */
 
 import { describe, expect, test } from 'vitest'
-import { HED_SCORE_INDEX_FORMAT, createHedScoreTermIndex, loadHedScoreIndex } from '../src/hed'
+import { HED_SCORE_INDEX_FORMAT, createHedScoreTermIndex, hedSchemaMeta, loadHedScoreIndex } from '../src/hed'
 import type { HedScoreIndex } from '../src/types/hed'
 import index from '../src/components/vocabulary/hed-score.json'
 
@@ -33,6 +33,12 @@ describe('the generated index', () => {
             seen.add(term.name)
         }
         expect(raw.branches.every(branch => seen.has(branch))).toBe(true)
+    })
+
+    test('roots each standard subtree after the SCORE branches', () => {
+        expect(raw.standardSubtrees).toEqual({ 'Data-artifact': 'Property' })
+        expect(raw.branches.at(-1)).toBe('Data-artifact')
+        expect(raw.terms.find(term => term.name === 'Data-artifact')?.parent).toBeNull()
     })
 
     test('carries no value placeholder as a term', () => {
@@ -64,6 +70,19 @@ describe('the term index', () => {
         expect(terms.branchOf('Sensor-list')).toBe('Feature-property')
         expect(terms.branchOf('Modulator')).toBe('Modulator')
         expect(terms.branchOf('Not-a-term')).toBeNull()
+    })
+
+    test('names the schema branch a policy checks a standard term against', () => {
+        expect(terms.branchOf('Eye-blink-artifact')).toBe('Data-artifact')
+        expect(terms.schemaBranchOf('Eye-blink-artifact')).toBe('Property')
+        expect(terms.schemaBranchOf('Sensor-list')).toBe('Feature-property')
+        expect(terms.schemaBranchOf('Not-a-term')).toBeNull()
+    })
+
+    test('stamps a code with the release the index names', () => {
+        expect(hedSchemaMeta(raw.schema)).toEqual({
+            schema: { library: 'score', version: raw.schema.version, with_standard: raw.schema.withStandard },
+        })
     })
 
     test('refuses an index of another layout', () => {

@@ -8,6 +8,6 @@ The input is the merged XML of the SCORE library with its partnered HED standard
 python generate_index.py --schema path/to/HED_score_2.1.0.xml --out ../../src/components/vocabulary/hed-score.json
 ```
 
-The output keeps the SCORE nodes only, one per line so a new release diffs by term, with the release's version and the SHA-256 of the input. A consumer compares that digest with its own pin rather than trusting the version string. The units are listed in full per unit class, SI prefixes applied, with the schema's default unit for each class.
+The output keeps the SCORE nodes and the HED standard's artifact subtree, which SCORE 2 moved there, one per line so a new release diffs by term, with the release's version and the SHA-256 of the input. A consumer compares that digest with its own pin rather than trusting the version string. The units are listed in full per unit class, SI prefixes applied, with the schema's default unit for each class.
 
 The schema is CC-BY-4.0, and the index is an adaptation of it: the generated file carries an `attribution` field naming the source, the licence and the changes, and the package [NOTICE](../../NOTICE) repeats it.

@@ -18,7 +18,7 @@ import {
 import EegRecording from './EegRecording'
 import EegService from './service/EegService'
 import EegStudyLoader from './loader/EegStudyLoader'
-import { HED_STANDARD, createHedScoreTermIndex, loadHedScoreIndex } from './hed'
+import { HED_STANDARD, createHedScoreTermIndex, hedSchemaMeta, loadHedScoreIndex } from './hed'
 import {
     DEFAULT_DIVERGING_RAMP,
     EegSurfaceFieldMap,
@@ -53,6 +53,7 @@ export {
     HED_STANDARD,
     createHedScoreTermIndex,
     getElectrodePosition,
+    hedSchemaMeta,
     loadHedScoreIndex,
     modality,
     rampFromHex,

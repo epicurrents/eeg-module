@@ -153,7 +153,7 @@ The test mock of core under [tests/mocks/epicurrents-core/](tests/mocks/epicurre
 
 [src/components/vocabulary/hed-score.json](src/components/vocabulary/hed-score.json) is generated from a merged HED-SCORE schema release by [generate_index.py](tools/hed-score/generate_index.py) and is never edited by hand: a hand edit is a term or a unit no validator elsewhere agrees with. A new release is a regeneration, and the consuming platform moves its own schema pin to the same release in step, because its tests compare the index's recorded version and SHA-256 with that pin and its terms and units with its own parse of the file.
 
-Two rules in the generator must match any validator the picked codes go to: how SI prefixes expand on a unit, and that a term takes a value exactly when it has a `#` child. The index format is versioned (`format`), and `createHedScoreTermIndex` refuses a layout it does not read rather than guessing.
+Two rules in the generator must match any validator the picked codes go to: how SI prefixes expand on a unit, and that a term takes a value exactly when it has a `#` child. The index holds the SCORE library and the standard subtrees listed in `STANDARD_SUBTREES`, today the artifacts; a subtree is rooted in the index but validated under the standard branch it sits in, which `standardSubtrees` records, so adding one is a generator change and a platform test change together. The index format is versioned (`format`), and `createHedScoreTermIndex` refuses a layout it does not read rather than guessing.
 
 `loadHedScoreIndex` is the only path to the file and the import is dynamic, so the 110 kB stay out of the module graph until a picker asks. Importing the JSON statically anywhere else puts it back in every bundle that imports the module.
 

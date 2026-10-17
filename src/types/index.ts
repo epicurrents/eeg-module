@@ -23,6 +23,7 @@ import type {
 } from '@epicurrents/core/types'
 import { type EegModuleSettings, type TrendDerivation } from './config'
 import type {
+    HedSchemaMeta,
     HedScoreIndex,
     HedScoreSchema,
     HedScoreTerm,
@@ -159,6 +160,7 @@ export {
     EegTopogramInterface,
     EncodedFieldMap,
     FieldMapChannelMatch,
+    HedSchemaMeta,
     HedScoreIndex,
     HedScoreSchema,
     HedScoreTerm,

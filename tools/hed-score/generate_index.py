@@ -8,6 +8,10 @@ names, parents, HED ids, descriptions and value placeholders, the unit strings t
 release's version and SHA-256, so a consumer can tell which release a code was picked from. The 1 MB XML is not
 shipped.
 
+SCORE 2 moved the artifacts into the HED standard, so the subtrees in ``STANDARD_SUBTREES`` are taken from the
+standard as well. Each becomes a root of the index, and ``standardSubtrees`` names the standard's top-level branch it
+sits under, which is the branch a validator restricting branches checks it against.
+
 The index is a derivation of the schema, not a selection from it: every SCORE node is in it, deprecated ones
 included and marked, and what a picker hides is the picker's decision. Two rules here must agree with any validator
 that accepts the codes the picker writes, because a unit or a term the two disagree on is offered and then refused:
@@ -33,13 +37,16 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 
 #: Bump when the output layout changes, so a consumer can refuse an index it does not understand.
-INDEX_FORMAT = 1
+INDEX_FORMAT = 2
+
+#: Subtrees of the HED standard a finding picker offers beside the SCORE branches.
+STANDARD_SUBTREES = ("Data-artifact",)
 
 ATTRIBUTION = (
     "Derived from the HED-SCORE library schema, copyright (c) 2021 HED Contributors, licensed under CC-BY-4.0 "
     "(https://creativecommons.org/licenses/by/4.0/). Source: https://github.com/hed-standard/hed-schemas. "
     "Hermes et al., Scientific Data (2025), https://doi.org/10.1038/s41597-025-05791-2. Modified: reduced to the "
-    "SCORE terms, their placeholders and units, and rewritten as JSON."
+    "SCORE terms and the standard's artifact terms, their placeholders and units, and rewritten as JSON."
 )
 
 
@@ -121,11 +128,23 @@ def build_index(data):
             if child.findtext("name") != "#":
                 walk(child, term["name"])
 
-    for top in root.find("schema").findall("node"):
+    tops = root.find("schema").findall("node")
+    for top in tops:
         if "inLibrary" not in _attributes(top):
             continue
         branches.append(top.findtext("name"))
         walk(top, None)
+
+    standard_subtrees = {}
+    for name in STANDARD_SUBTREES:
+        found = next(
+            ((top, node) for top in tops for node in top.iter("node") if node.findtext("name") == name), None
+        )
+        if found is None or "inLibrary" in _attributes(found[1]):
+            raise SystemExit(f"{name} is not a node of the HED standard in this schema")
+        branches.append(name)
+        standard_subtrees[name] = found[0].findtext("name")
+        walk(found[1], None)
 
     unit_classes = {unit_class for term in terms for unit_class in term.get("unitClasses", [])}
     return {
@@ -139,6 +158,7 @@ def build_index(data):
         "license": "CC-BY-4.0",
         "attribution": ATTRIBUTION,
         "branches": branches,
+        "standardSubtrees": standard_subtrees,
         "units": _units(root, unit_classes),
         "terms": terms,
     }

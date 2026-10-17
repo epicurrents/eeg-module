@@ -10,13 +10,13 @@
  * @license    Apache-2.0
  */
 
-import type { HedScoreIndex, HedScoreTerm, HedScoreTermIndex } from '#types/hed'
+import type { HedSchemaMeta, HedScoreIndex, HedScoreSchema, HedScoreTerm, HedScoreTermIndex } from '#types/hed'
 
 /** The `codes` key a HED string is stored under. */
 export const HED_STANDARD = 'hed'
 
 /** The index layout this module reads. */
-export const HED_SCORE_INDEX_FORMAT = 1
+export const HED_SCORE_INDEX_FORMAT = 2
 
 let _loading: Promise<HedScoreTermIndex> | null = null
 
@@ -34,11 +34,25 @@ export function createHedScoreTermIndex (index: HedScoreIndex): HedScoreTermInde
     for (const term of index.terms) {
         branches.set(term.name, term.parent === null ? term.name : branches.get(term.parent) ?? term.name)
     }
+    const branchOf = (name: string) => branches.get(name) ?? null
     return {
         ...index,
-        branchOf: (name: string) => branches.get(name) ?? null,
+        branchOf,
         getTerm: (name: string) => byName.get(name) ?? null,
+        schemaBranchOf: (name: string) => {
+            const branch = branchOf(name)
+            return branch === null ? null : index.standardSubtrees[branch] ?? branch
+        },
     }
+}
+
+/**
+ * The `meta` a HED code is stored with, naming the release its string was written against. A host that saves a picked
+ * code to a server sends this with it.
+ * @param schema - The release, as an index records it.
+ */
+export function hedSchemaMeta (schema: HedScoreSchema): HedSchemaMeta {
+    return { schema: { library: schema.library, version: schema.version, with_standard: schema.withStandard } }
 }
 
 /**
