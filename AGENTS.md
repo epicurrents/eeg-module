@@ -36,7 +36,8 @@ src/
     EegMontageChannel.ts  # derived (montage) channel
     EegEvent.ts           # timed event annotation
     vocabulary/
-      eeg-events.json     # coded event vocabulary: the activation set and the findings
+      eeg-events.json     # coded event vocabulary: the activation set
+      hed-score.json      # generated HED-SCORE term index (tools/hed-score/)
     EegLabel.ts           # label annotation
     EegVideo.ts           # associated video resource
     EegAmplitudeIntegratedTrend.ts  # aEEG trend wrapper (see Trends below)
@@ -144,9 +145,17 @@ With no settings the setter assigns nothing at all. The patterns are the deploym
 
 ### Coded events — [src/components/vocabulary/eeg-events.json](src/components/vocabulary/eeg-events.json)
 
-`EegEvent.CODED_EVENTS` is the shared set of core's `GenericBiosignalEvent` (TECHNICAL, INTERVENTION, OBSERVATION, ENVIRONMENT) followed by this module's own categories, loaded from the vocabulary file and stacked with `mergeCodedEvents`. ACTIVATION is the acquisition half of the EEG set — eyes closed and open, hyperventilation with its start and end, photic stimulation per frequency, the sensory stimuli (auditory and verbal kept apart, tactile, noxious with the method in `meta`, non-photic visual) and passive eye opening — and is what a consuming platform registers as the `epicurrents.eeg` vocabulary; the finding categories are scoped `finding` and stay viewer-side. The lookup and extension statics are inherited from core and read `this.CODED_EVENTS`, so `EegEvent.getEventForCode` finds a shared term and `EegEvent.extendEvents('OTHER', …)` writes into this module's table while `EegEvent.extendEvents('OBSERVATION', …)` writes into core's. The file's `version` moves whenever a term is added, deprecated or its crosswalk changes; a code never changes once shipped. The crosswalk columns were checked against DICOM CID 3035, whose own table repeats the nystagmoid identifier for slow eye movements and has one code for swallowing and chewing; those are not errors here. Design and term tables: the consuming platform repository's `docs/engineering-notes/annotation-event-vocabulary.md`.
+`EegEvent.CODED_EVENTS` is the shared set of core's `GenericBiosignalEvent` (TECHNICAL, INTERVENTION, OBSERVATION, ENVIRONMENT) followed by this module's own category, loaded from the vocabulary file and stacked with `mergeCodedEvents`. ACTIVATION is the acquisition half of the EEG set — eyes closed and open, hyperventilation with its start and end, photic stimulation per frequency, the sensory stimuli (auditory and verbal kept apart, tactile, noxious with the method in `meta`, non-photic visual) and passive eye opening — and is what a consuming platform registers as the `epicurrents.eeg` vocabulary. It is the file's only category: findings are coded in HED-SCORE, below. The lookup and extension statics are inherited from core and read `this.CODED_EVENTS`, so `EegEvent.getEventForCode` finds a shared term and `EegEvent.extendEvents('OTHER', …)` writes into this module's table while `EegEvent.extendEvents('OBSERVATION', …)` writes into core's. The file's `version` moves whenever a term is added, deprecated or its crosswalk changes; a code never changes once shipped. The crosswalk columns were checked against DICOM CID 3035, whose own table repeats the nystagmoid identifier for slow eye movements and has one code for swallowing and chewing; those are not errors here. Design and term tables: the consuming platform repository's `docs/engineering-notes/annotation-event-vocabulary.md`.
 
 The test mock of core under [tests/mocks/epicurrents-core/](tests/mocks/epicurrents-core/) loads core's vocabulary file and its loaders from the core checkout beside this package, so an `EegEvent` test sees the real merged view without building core.
+
+### HED-SCORE term index — [src/hed/](src/hed/), [tools/hed-score/](tools/hed-score/)
+
+[src/components/vocabulary/hed-score.json](src/components/vocabulary/hed-score.json) is generated from a merged HED-SCORE schema release by [generate_index.py](tools/hed-score/generate_index.py) and is never edited by hand: a hand edit is a term or a unit no validator elsewhere agrees with. A new release is a regeneration, and the consuming platform moves its own schema pin to the same release in step, because its tests compare the index's recorded version and SHA-256 with that pin and its terms and units with its own parse of the file.
+
+Two rules in the generator must match any validator the picked codes go to: how SI prefixes expand on a unit, and that a term takes a value exactly when it has a `#` child. The index format is versioned (`format`), and `createHedScoreTermIndex` refuses a layout it does not read rather than guessing.
+
+`loadHedScoreIndex` is the only path to the file and the import is dynamic, so the 110 kB stay out of the module graph until a picker asks. Importing the JSON statically anywhere else puts it back in every bundle that imports the module.
 
 ### EegMontage
 

@@ -43,6 +43,19 @@ Anything that redistributes this package's built output — an assembled applica
 the same mesh and so carries these conditions with it.
 
 --------------------------------------------------------------------------------------------------------------
+HED-SCORE library schema — CC-BY-4.0
+Copyright (c) 2021, HED Contributors
+https://github.com/hed-standard/hed-schemas (library_schemas/score)
+Full text: licenses/LICENSE.hed-score.txt
+
+`src/components/vocabulary/hed-score.json` is adapted from the merged HED-SCORE 2.1.0 schema (with HED 8.4.0) by
+`tools/hed-score/generate_index.py`. It is a modified version: reduced to the SCORE terms, their value placeholders
+and units, with descriptions whitespace-normalised and the whole rewritten as JSON. Term names, identifiers and
+descriptions are the schema's own.
+
+  Hermes et al. (2025). Scientific Data. https://doi.org/10.1038/s41597-025-05791-2
+
+--------------------------------------------------------------------------------------------------------------
 Methods
 
 The implementations follow published methods. These are cited for academic attribution; no code was taken from the
