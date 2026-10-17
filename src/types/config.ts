@@ -12,19 +12,6 @@ import {
 } from '@epicurrents/core/types'
 
 export type EegModuleSettings = BaseModuleSettings & CommonBiosignalSettings & {
-    /** List of channel types and their (known) corresponding signal labels. */
-    channelTypeMatchers: {
-        /** All possible signal labels that should be classified as EEG. */
-        eeg: string[]
-        /** All possible signal labels that should be classified as EKG. */
-        ekg: string[]
-        /** All possible signal labels that should be classified as EMG. */
-        emg: string[]
-        /** All possible signal labels that should be classified as EOG. */
-        eog: string[]
-        /** All possible signal labels that should be classified as respiration. */
-        res: string[]
-    }
     /** Should the active channels be excluded from the average calculation? */
     excludeActiveFromAvg: boolean
     /** Definition of EEG frequency bands. */

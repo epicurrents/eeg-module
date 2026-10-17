@@ -43,25 +43,6 @@ const freshScaling = (scaling: TrendEpochScaling): TrendEpochScaling => {
 }
 
 const EegSettings: EegModuleSettings = {
-    channelTypeMatchers: {
-        eeg: [
-            'fp1', 'f3', 'c3', 'p3', 'f7', 't3', 't5', 'o1',
-            'fp2', 'f4', 'c4', 'p4', 'f8', 't4', 't6', 'o2',
-            'fz', 'cz', 'pz',
-        ],
-        ekg: [
-            'ekg', 'ecg',
-        ],
-        emg: [
-            'emg', 'musc',
-        ],
-        eog: [
-            'eog', 'loc', 'roc',
-        ],
-        res: [
-            'res',
-        ],
-    },
     defaultMontages: {
         // Keyed by setup name; a setup absent from `defaultSetups` contributes nothing, so the 10-10
         // entry costs a deployment that does not select the setup nothing.
@@ -145,8 +126,8 @@ const EegSettings: EegModuleSettings = {
             { left: 'F3',  right: 'F4'  },
             { left: 'F7',  right: 'F8'  },
             { left: 'C3',  right: 'C4'  },
-            { left: 'T3',  right: 'T4'  },
-            { left: 'T5',  right: 'T6'  },
+            { left: 'T7',  right: 'T8'  },
+            { left: 'P7',  right: 'P8'  },
             { left: 'P3',  right: 'P4'  },
             { left: 'O1',  right: 'O2'  },
         ],

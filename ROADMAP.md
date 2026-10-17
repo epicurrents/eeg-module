@@ -16,12 +16,6 @@ What remains is a decision rather than a defect: `defaultSetups` still names the
 
 The other montages of the 10-10 array are not bundled — only `rec` exists. An average-reference, longitudinal and transverse montage over the larger array would each need writing, and [src/config/defaults.json](src/config/defaults.json) is a stale catalogue that names a `lpl` path which does not exist and calls the longitudinal montage `dbn`; nothing reads it.
 
-## `channelTypeMatchers` is read by nothing
-
-The setting is declared as a required field of `EegModuleSettings`, populated with a 10-20 label list in the module defaults, and consumed nowhere in the workspace — no package, no worker, no interface component reads it. Either something was meant to classify channels by it and does not, or the classification moved into the setup files and the setting outlived it.
-
-Being inert, its content is also stale: the list carries the pre-1991 temporal names (`t3`–`t6`) and not the modern ones (`t7`, `t8`, `p7`, `p8`), which would matter the moment anything started reading it.
-
 ## `convertPatterns` wipes the fields its replacement omits
 
 In the `events` setter, `annotator` is copied with `||` so an omitted one keeps the event's own, while `channels`, `class`, `priority`, `text` and `type` are assigned unconditionally — so a pattern that renames an event and says nothing else clears all five. The declared type is a full `BiosignalAnnotationEvent`, which makes the wipe defensible as "the replacement states everything", but the asymmetry with `annotator` says otherwise and a partial replacement is the natural thing for a deployment to write.
