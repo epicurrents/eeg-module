@@ -1029,6 +1029,15 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
                 }
                 Log.debug(`Data cache setup complete.`, SCOPE)
             }
+            if (this._trustedInterruptions) {
+                // Deliver the complete trusted interruption table to the reader before anything can read: once the
+                // default montages below are applied the recording can be drawn, and a cache fill may then start at
+                // any view position. A read past a gap the reader does not yet know of maps that position to the
+                // wrong data record and shifts every signal after it. Study setup has run by now, and its duration probe, which clears
+                // the discovered table, cannot undo the delivery. Marks the table complete, lifting the
+                // explored-span navigation restriction.
+                await this._service?.setInterruptions(this._trustedInterruptions, true)
+            }
             // Set up the dedicated trend service, connecting it to the EDF SAB.
             // Use the real worker when SAB is available, substitute otherwise.
             await this._initTrendService()
@@ -1091,13 +1100,6 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
                 // (e.g. autoCompute=false and the user toggled the strip on late).
                 this._scheduleTrendSetup()
             }, this.id)
-            if (this._trustedInterruptions) {
-                // Deliver the complete trusted interruption table to the reader now that
-                // study setup is done (the EDF duration probe during setup clears the
-                // discovered table). Marks the table complete, lifting the explored-span
-                // navigation restriction before the first cache seed.
-                await this._service?.setInterruptions(this._trustedInterruptions, true)
-            }
             const cacheOk = await this.cacheSignals()
             if (cacheOk === false) {
                 // `cacheSignals` returns false when the worker's cache fill
