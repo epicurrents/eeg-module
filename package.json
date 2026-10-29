@@ -75,5 +75,8 @@
     "@epicurrents/core": "^2.1.0",
     "asymmetric-io-mutex": "^1.0.0",
     "scoped-event-log": "^3.2.0"
+  },
+  "dependencies": {
+    "@epicurrents/core": "^2.1.0"
   }
 }
