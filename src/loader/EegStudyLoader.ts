@@ -9,10 +9,12 @@ import { BiosignalStudyLoader, GenericBiosignalHeader } from '@epicurrents/core'
 import { MB_BYTES } from '@epicurrents/core/util'
 import type {
     BiosignalChannel,
+    BiosignalConfig,
     ConfigStudyLoader,
     FileFormatImporter,
     FileFormatExporter,
     FileSystemItem,
+    MemoryManager,
     SafeObject,
     StudyContext,
 } from '@epicurrents/core/types'
@@ -56,7 +58,7 @@ export default class EegStudyLoader extends BiosignalStudyLoader {
             Log.error(`Study loader does not have a file worker.`, SCOPE)
             return null
         }
-        const recording = new EegRecording(
+        const recording = this._createRecording(
             this._study.name,
             meta.channels,
             meta.header,
@@ -133,6 +135,21 @@ export default class EegStudyLoader extends BiosignalStudyLoader {
         // Clear the loaded study.
         this._study = null
         return recording
+    }
+
+    /**
+     * Construct the resource of a loaded study. A subclass building on the EEG recording overrides this and inherits
+     * the memory budget check and study claiming around it.
+     */
+    protected _createRecording (
+        name: string,
+        channels: BiosignalChannel[],
+        header: GenericBiosignalHeader,
+        worker: Worker,
+        memoryManager?: MemoryManager,
+        config?: BiosignalConfig
+    ): EegResource {
+        return new EegRecording(name, channels, header, worker, memoryManager, config)
     }
 
     /**
