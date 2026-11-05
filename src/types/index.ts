@@ -58,6 +58,12 @@ export interface EegResource extends BiosignalResource {
     /** Maximum sampling rate of displayed signals. */
     maxSamplingRate: number
     /**
+     * Whether initial setup has added every montage this recording makes for itself: the default and extra montages
+     * for an EEG recording, and whatever a subclass adds in their place. A viewer waits for this rather than counting
+     * montages against the settings, because the number depends on the recording. Never reset once true.
+     */
+    montagesReady: boolean
+    /**
      * Register one cascade montage per entry whose source candidates resolve against the keyed setup on this recording.
      * The `entriesBySetup` map mirrors the `extraMontages` shape: setup name → entries that should build against that
      * setup. For each entry, candidates are tried in priority order against the keyed setup; the first one whose name

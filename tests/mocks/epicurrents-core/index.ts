@@ -427,7 +427,23 @@ export class GenericBiosignalResource {
             }, this.id)
         }
     }
-    _setPropertyValue(prop: string, value: any) { (this as any)[prop] = value }
+    // The mock keeps most properties as plain fields and writes those directly. A read-only accessor has no setter
+    // to go through, so for one the protected field is written, as the real method does for every property.
+    _setPropertyValue(prop: string, value: any) {
+        let proto = Object.getPrototypeOf(this)
+        let accessor: PropertyDescriptor | undefined
+        while (proto && !accessor) {
+            accessor = Object.getOwnPropertyDescriptor(proto, prop)
+            proto = Object.getPrototypeOf(proto)
+        }
+        if (accessor?.get && !accessor.set) {
+            const prev = (this as any)[`_${prop}`]
+            ;(this as any)[`_${prop}`] = value
+            this.dispatchPropertyChangeEvent(prop, value, prev)
+        } else {
+            (this as any)[prop] = value
+        }
+    }
     setMemoryManager(mgr: any) { this._memoryManager = mgr }
     get events() { return this._events }
     set events(e: any[]) { this._events = e }

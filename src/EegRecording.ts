@@ -116,6 +116,8 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
     protected _formatHeader: object | null = null
     /** Header information for this record. */
     protected _headers: GenericBiosignalHeader
+    /** Set once initial setup has added every montage the recording makes for itself; see {@link montagesReady}. */
+    protected _montagesReady = false
     /**
      * In-flight teardown started by deactivation, or `null` when no teardown is pending. The
      * `isActive` setter flips the active flag synchronously and runs {@link unload} in the
@@ -318,6 +320,9 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
             // Default to base class implementation.
             super.isActive = value
         }
+    }
+    get montagesReady () {
+        return this._montagesReady
     }
     get videos () {
         return this._videos
@@ -1058,7 +1063,8 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
             // hook — without this, activating one errors with "signal cache has not been set
             // up yet" because its worker-side processor was never commissioned.
             await this._wireMontageDataSources(montagesAddedBeforeSetup)
-            // Initial setup complete.
+            // Initial setup complete. The flag goes before the event, so a handler of either finds the other in place.
+            this._setPropertyValue('montagesReady', true)
             Log.debug(`EEG recording initial setup complete.`, SCOPE)
             this.dispatchEvent(EegRecording.EVENTS.INITIAL_SETUP, 'after')
             // Trends read raw EDF signals from the SAB directly — they are montage-independent.

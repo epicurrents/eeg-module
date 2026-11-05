@@ -89,9 +89,11 @@ The three loading entry points — `loadFromFile`, `loadFromUrl`, `loadFromDirec
 Activation and `preload()` both run `_completeSetup`, which:
 1. Computes the memory budget and requests it (`requestMemory(totalMem)`), or sets up the JS-heap `BiosignalCache` when there is no memory manager
 2. Starts the trend service against the reader's buffer
-3. Applies the default montages (`_applyDefaultMontages` — the bundled 10-20 setups' avg / lon / rec / trv, plus the extra CZ-ref and Laplacian montages), then wires any montage that was added before the buffer existed
+3. Applies the default montages (`_applyDefaultMontages` — the bundled 10-20 setups' avg / lon / rec / trv, plus the extra CZ-ref and Laplacian montages), then wires any montage that was added before the buffer existed, sets `montagesReady` and dispatches `INITIAL_SETUP` 'after'
 4. Installs the `signalCacheStatus` and `SIGNAL_CACHING_COMPLETE` listeners that drive progressive trend computation
 5. Starts `cacheSignals()`
+
+`montagesReady` is what a viewer waits on before treating the montage list as whole. A subclass overriding `_applyDefaultMontages` decides which montages it makes, as `PsgRecording` replaces the 10-20 defaults with one montage of its own, so the number of montages a recording ends up with cannot be derived from the EEG settings. The flag is set once and never reset.
 
 It is idempotent — a ready service means the work is done, and a recording that has not finished `prepare()` is not set up to receive it. `preload()` exists to move that cost to a moment where the user is looking at something else, and reads the resulting state back off the resource rather than returning its own guard's narrowing, which would report success for a failed allocation.
 

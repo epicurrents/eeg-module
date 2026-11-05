@@ -79,6 +79,7 @@ export default class EegService extends GenericBiosignalService implements Biosi
         // main thread's, the mutex layout it computes won't fit the allocated SAB slice.
         const appSettings = window.__EPICURRENTS__?.RUNTIME?.SETTINGS?.app
         const settingsApp = appSettings ? {
+            dataBlockChunkDuration: appSettings.dataBlockChunkDuration,
             dataBlockDuration: appSettings.dataBlockDuration,
             dataChunkSize: appSettings.dataChunkSize,
             logThreshold: appSettings.logThreshold,

@@ -272,3 +272,21 @@ describe('setup failure handling', () => {
         expect(internals._isPreloading).toBe(false)
     })
 })
+
+describe('montage readiness', () => {
+    test('montagesReady is false until setup has added the recording\'s montages, and true after', async () => {
+        // A viewer waits on this flag rather than counting montages against its settings, so it has to be set by the
+        // same setup that adds them and not before.
+        setRuntime(100*MB)
+        const { rec } = preparedRecording(channelsOf(1, 100))
+        const order: string[] = []
+        vi.spyOn(rec as unknown as { _applyDefaultMontages: () => Promise<void> }, '_applyDefaultMontages')
+            .mockImplementation(async () => {
+                order.push(`montages added, ready=${rec.montagesReady}`)
+            })
+        expect(rec.montagesReady).toBe(false)
+        await (rec as unknown as { _completeSetup: () => Promise<void> })._completeSetup()
+        expect(order).toEqual(['montages added, ready=false'])
+        expect(rec.montagesReady).toBe(true)
+    })
+})

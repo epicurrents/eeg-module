@@ -12,6 +12,7 @@ import type { BiosignalHeaderRecord, StudyContext } from '@epicurrents/core/type
 import EegService from '../src/service/EegService'
 
 const APP_SETTINGS = {
+    dataBlockChunkDuration: 120,
     dataBlockDuration: 1800,
     dataChunkSize: 1048576,
     logThreshold: 'DEBUG',
