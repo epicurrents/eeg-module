@@ -971,17 +971,21 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
                     ROLLING_BLOCK_FLOOR,
                     Math.min(blockDurationCap, idealBlockDuration)
                 )
+                // A full cache covers the whole data units the mutex lays out, which exceeds the sample count of a
+                // signal that does not end on a whole unit.
+                const cachedSamples = (sampleCount: number, samplingRate: number) => {
+                    const fullSamples = samplingRate
+                        ? Math.ceil(BiosignalMutex.coveredLength(sampleCount/samplingRate) * samplingRate)
+                        : sampleCount
+                    return useRolling
+                        ? Math.min(fullSamples, Math.ceil(3 * blockDuration * samplingRate))
+                        : fullSamples
+                }
                 for (const chan of this.channels) {
-                    const channelSamples = useRolling
-                        ? Math.min(chan.sampleCount, Math.ceil(3 * blockDuration * chan.samplingRate))
-                        : chan.sampleCount
-                    totalMem += channelSamples + dataFieldsLen
+                    totalMem += cachedSamples(chan.sampleCount, chan.samplingRate) + dataFieldsLen
                 }
                 for (const slot of derivationSlots) {
-                    const slotSamples = useRolling
-                        ? Math.min(slot.sampleCount, Math.ceil(3 * blockDuration * slot.samplingRate))
-                        : slot.sampleCount
-                    totalMem += slotSamples + dataFieldsLen
+                    totalMem += cachedSamples(slot.sampleCount, slot.samplingRate) + dataFieldsLen
                 }
                 // TODO: Remove once rolling window cache is finalized.
                 Log.info(

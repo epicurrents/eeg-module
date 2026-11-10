@@ -521,7 +521,9 @@ export class BiosignalStudyLoader {
 }
 
 export const BiosignalMutex = {
-    SIGNAL_DATA_POS: 4
+    SIGNAL_DATA_POS: 4,
+    coveredLength: (dataLength: number, dataUnitDuration = 1) =>
+        Math.ceil(dataLength/dataUnitDuration - 1e-6)*dataUnitDuration,
 }
 
 // Stub of the trend asset hierarchy. The trend math is not exercised here, but the registration

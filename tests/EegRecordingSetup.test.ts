@@ -112,6 +112,14 @@ describe('memory budget', () => {
         )
     })
 
+    test('a recording off the whole-second grid is allocated whole seconds', async () => {
+        // The mutex stores its range in whole data units and lays out its buffers to match, so the
+        // final, partial second takes a full second of samples.
+        setRuntime(100*MB)
+        expect(await requestedFloats(channelsOf(2, 7.5)))
+            .toBe(MUTEX_OVERHEAD + 2*(8*256 + DATA_FIELDS))
+    })
+
     test('a derivation slot is budgeted exactly like a source channel', async () => {
         // The slots are declared by the setup and cached in the same buffer, so leaving them out
         // allocates a buffer the worker then overruns.
