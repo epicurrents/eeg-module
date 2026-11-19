@@ -412,6 +412,12 @@ export class GenericBiosignalResource {
         trend.cancelTrendComputation()
         return this._trends.delete(name)
     }
+    removeAllTrends() {
+        for (const trend of this._trends.values()) {
+            trend.cancelTrendComputation()
+        }
+        this._trends.clear()
+    }
     _derivationCacheSlots(): any[] { return [] }
     addEventListener(_ev: any, _cb: any, _id?: any) { }
     dispatchEvent(_ev: any, _phase?: any) { }
@@ -456,6 +462,7 @@ export class GenericBiosignalResource {
     addLabels(contextOrFirst: any, ...rest: any[]) {
         this._labels.push(...(_isPropertyChangeContext(contextOrFirst) ? rest : [contextOrFirst, ...rest]))
     }
+    async destroy() { return Promise.resolve() }
     async releaseBuffers(): Promise<boolean> { return true }
     async unload() { return Promise.resolve() }
     get isActive() { return this._isActive }

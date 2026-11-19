@@ -362,6 +362,16 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
             Log.warn(`Trends are unavailable for this recording: ${this._trendServiceUnavailable}.`, SCOPE)
             return
         }
+        // Setup runs again on every reactivation, against a new signal cache. The service set up against the previous
+        // one is shut down rather than dropped, since dropping it leaves its worker running, and the trends built on it
+        // go with it; the next cached epoch builds them again on the new service.
+        if (this._trendService) {
+            this.removeAllTrends()
+            await this._trendService.destroy().catch((e: unknown) => {
+                Log.warn(`Shutting down the previous trend worker failed: ${asError(e).message}`, SCOPE)
+            })
+            this._trendService = null
+        }
         const service = new TrendService()
         // Per-channel modality list lets the trend worker restrict Common Average Reference
         // to EEG channels only. Without this, a single non-EEG channel (EKG, photic, status)
@@ -379,6 +389,7 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
         if (result) {
             this._trendService = service
         } else {
+            await service.destroy().catch(() => {})
             this._trendServiceUnavailable = 'the trend worker could not be set up'
             Log.warn(`Trends are unavailable for this recording: ${this._trendServiceUnavailable}.`, SCOPE)
         }
@@ -1276,6 +1287,19 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
             this.setup = setup
         }
         return setup
+    }
+
+    async destroy (): Promise<void> {
+        // The trend worker is the recording's own, outside the montages the base class tears down. A refused shutdown
+        // still lets the rest of the recording go.
+        this.removeAllTrends()
+        try {
+            await this._trendService?.destroy()
+        } catch (e) {
+            Log.warn(`Shutting down the trend worker of ${this.name} failed: ${asError(e).message}`, SCOPE)
+        }
+        this._trendService = null
+        await super.destroy()
     }
 
     getMainProperties () {
