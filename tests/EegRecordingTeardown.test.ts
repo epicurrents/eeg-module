@@ -85,6 +85,35 @@ describe('the trend worker', () => {
         warn.mockRestore()
     })
 
+    test('is not left in place while the previous one shuts down', async () => {
+        services.length = 0
+        setupResult = true
+        const { internals } = makeRecording()
+        await internals._initTrendService()
+        let finish = () => undefined as void
+        services[0].destroy.mockReturnValueOnce(new Promise<void>((resolve) => {
+            finish = resolve
+        }))
+        const again = internals._initTrendService()
+        // A trend built now would compute through the worker that is shutting down.
+        expect(internals._trendService).toBeNull()
+        finish()
+        await again
+        expect(internals._trendService).toBe(services[1])
+    })
+
+    test('is shut down when the recording is destroyed while it is being set up', async () => {
+        services.length = 0
+        setupResult = true
+        const { rec, internals } = makeRecording()
+        const setup = internals._initTrendService()
+        await rec.destroy()
+        await setup
+        expect(services).toHaveLength(1)
+        expect(services[0].destroy).toHaveBeenCalledTimes(1)
+        expect(internals._trendService).toBeNull()
+    })
+
     test('is shut down when the recording is destroyed', async () => {
         services.length = 0
         setupResult = true

@@ -79,6 +79,45 @@ describe('publishing montages', () => {
         expect((internals._recordMontage as EegMontage | null)?.name).toBe(`${SETUP}:rec`)
     })
 
+    test('publishes the other default montages when one cannot be commissioned', async () => {
+        vi.spyOn(EegMontage.prototype, 'mapChannels').mockImplementation(() => [])
+        const destroyed: string[] = []
+        vi.spyOn(EegMontage.prototype, 'destroy').mockImplementation(async function (this: EegMontage) {
+            destroyed.push(this.name)
+        })
+        const { rec } = makeRecording()
+        vi.spyOn(EegMontage.prototype, 'setupServiceWithInputMutex').mockImplementation(
+            async function (this: EegMontage) {
+                if (this.name === `${SETUP}:rec`) {
+                    throw new Error('refused')
+                }
+                return { success: true } as never
+            }
+        )
+        await (rec as unknown as { _applyDefaultMontages: () => Promise<void> })._applyDefaultMontages()
+        expect(rec.montages.map(m => m.name)).toContain(`${SETUP}:avg`)
+        expect(rec.montages.map(m => m.name)).not.toContain(`${SETUP}:rec`)
+        // Nothing else holds the montage that failed, so its service is shut down where it was made.
+        expect(destroyed).toEqual([`${SETUP}:rec`])
+    })
+
+    test('publishes the montages made before one that throws', async () => {
+        vi.spyOn(EegMontage.prototype, 'mapChannels').mockImplementation(() => [])
+        vi.spyOn(EegMontage.prototype, 'setupServiceWithInputMutex').mockResolvedValue({ success: true } as never)
+        const { rec } = makeRecording()
+        type Preparing = { _prepareMontage: (...args: unknown[]) => Promise<EegMontage | null> }
+        const prepare = (rec as unknown as Preparing)._prepareMontage.bind(rec)
+        vi.spyOn(rec as unknown as Preparing, '_prepareMontage').mockImplementation(async (...args: unknown[]) => {
+            if (args[0] === `${SETUP}:avg`) {
+                throw new Error('failed')
+            }
+            return prepare(...args)
+        })
+        const apply = (rec as unknown as { _applyDefaultMontages: () => Promise<void> })._applyDefaultMontages()
+        await expect(apply).rejects.toThrow('failed')
+        expect(rec.montages.map(m => m.name)).toEqual([`${SETUP}:rec`])
+    })
+
     test('adds a montage that exists already without publishing it again', async () => {
         vi.spyOn(EegMontage.prototype, 'mapChannels').mockImplementation(() => [])
         const { rec, log } = makeRecording()

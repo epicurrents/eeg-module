@@ -143,6 +143,9 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
     protected _videos: EegVideo[] = []
     /** Dedicated trend service — created on first activation, shared by all trends. */
     protected _trendService: import('@epicurrents/core/types').BiosignalTrendService | null = null
+    /** Counts the setups and the destroy of the trend service, so a setup can tell that it was superseded while
+     *  it waited. */
+    protected _trendServiceRun = 0
     /** Why the trend service could not be created, once setup has given up on it. While this is
      *  null and the service is missing, setup has simply not reached it yet. */
     protected _trendServiceUnavailable: string | null = null
@@ -365,12 +368,16 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
         // Setup runs again on every reactivation, against a new signal cache. The service set up against the previous
         // one is shut down rather than dropped, since dropping it leaves its worker running, and the trends built on it
         // go with it; the next cached epoch builds them again on the new service.
-        if (this._trendService) {
+        // A setup or a destroy that begins while this one waits makes its result stale; the run number tells.
+        const run = ++this._trendServiceRun
+        const previous = this._trendService
+        if (previous) {
             this.removeAllTrends()
-            await this._trendService.destroy().catch((e: unknown) => {
+            // Cleared before the wait, so nothing builds a trend on a service that is shutting down.
+            this._trendService = null
+            await previous.destroy().catch((e: unknown) => {
                 Log.warn(`Shutting down the previous trend worker failed: ${asError(e).message}`, SCOPE)
             })
-            this._trendService = null
         }
         const service = new TrendService()
         // Per-channel modality list lets the trend worker restrict Common Average Reference
@@ -386,6 +393,11 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
             undefined,
             signalModalities,
         )
+        if (run !== this._trendServiceRun) {
+            // Nothing holds this service, so it is shut down here or its worker runs for the life of the page.
+            await service.destroy().catch(() => {})
+            return
+        }
         if (result) {
             this._trendService = service
         } else {
@@ -888,6 +900,25 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
         // change of `montages` is a synchronous dispatch that listeners answer by re-rendering, so publishing them one
         // at a time repeats that work once per montage.
         const created: EegMontage[] = []
+        try {
+            await this._prepareDefaultMontages(created)
+        } finally {
+            // Also when one of them throws: the montages made before it are commissioned, and unpublished they
+            // would be neither usable nor destroyed with the recording.
+            if (created.length) {
+                this._setPropertyValue('montages', [...this.montages, ...created])
+            }
+        }
+    }
+
+    /**
+     * Find or create every default and extra montage of the recording's setups, appending the new ones to `created`.
+     * @param created - Montages created and not yet published.
+     */
+    protected async _prepareDefaultMontages (created: EegMontage[]): Promise<void> {
+        if (!this._SETTINGS) {
+            return
+        }
         for (const name of this._SETTINGS.defaultSetups || []) {
             const setup = this._setups.find(s => s.name === name)
             if (!setup) {
@@ -926,9 +957,6 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
                     Log.debug(`Added extra montage '${montage.label}' for setup '${setup}'.`, SCOPE)
                 }
             }
-        }
-        if (created.length) {
-            this._setPropertyValue('montages', [...this.montages, ...created])
         }
     }
 
@@ -985,10 +1013,17 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
         //
         // With neither a mutex nor a cache available there is nothing to commission against; the montage is published
         // unwired and `_wireMontageDataSources` commissions it once the buffer exists.
-        if (this._mutexProps) {
-            await montage.setupServiceWithInputMutex(this._mutexProps)
-        } else if (this._cacheProps) {
-            await montage.setupServiceWithCache(this._cacheProps)
+        try {
+            if (this._mutexProps) {
+                await montage.setupServiceWithInputMutex(this._mutexProps)
+            } else if (this._cacheProps) {
+                await montage.setupServiceWithCache(this._cacheProps)
+            }
+        } catch (e) {
+            // Nothing else holds the montage yet, so it is destroyed here or its service is never shut down.
+            Log.error(`Commissioning montage '${name}' failed: ${asError(e).message}`, SCOPE)
+            await montage.destroy().catch(() => undefined)
+            return null
         }
         // Interruptions are set before publication too, so a listener that asks about gaps gets the same answer it
         // would after a full setup pass.
@@ -1320,12 +1355,15 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
         // The trend worker is the recording's own, outside the montages the base class tears down. A refused shutdown
         // still lets the rest of the recording go.
         this.removeAllTrends()
+        // A trend service still being set up finds its run superseded and shuts itself down.
+        this._trendServiceRun++
+        const trendService = this._trendService
+        this._trendService = null
         try {
-            await this._trendService?.destroy()
+            await trendService?.destroy()
         } catch (e) {
             Log.warn(`Shutting down the trend worker of ${this.name} failed: ${asError(e).message}`, SCOPE)
         }
-        this._trendService = null
         await super.destroy()
     }
 

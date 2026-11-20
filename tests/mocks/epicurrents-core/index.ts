@@ -178,6 +178,7 @@ export class GenericBiosignalMontage {
     }
     getMainProperties() { return new Map() }
     async getAllSignals(_range: number[], _config?: any): Promise<any> { return null }
+    async destroy() { return Promise.resolve() }
     async releaseBuffers() { return Promise.resolve() }
     async unload() { return Promise.resolve() }
     async setupServiceWithInputMutex(_props: any) { return true }
