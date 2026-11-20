@@ -884,6 +884,10 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
         if (!this._SETTINGS || this._SETTINGS.skipDefaultSetups) {
             return
         }
+        // Every default montage is commissioned before any is published, and they are published together: each
+        // change of `montages` is a synchronous dispatch that listeners answer by re-rendering, so publishing them one
+        // at a time repeats that work once per montage.
+        const created: EegMontage[] = []
         for (const name of this._SETTINGS.defaultSetups || []) {
             const setup = this._setups.find(s => s.name === name)
             if (!setup) {
@@ -894,7 +898,9 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
             ]
             for (const montage of montages || []) {
                 const template = EegRecording.DEFAULT_MONTAGES.get(name)?.montages[montage[0]]
-                const newMontage = await this.addMontage(`${setup.name}:${montage[0]}`, montage[1], setup, template)
+                const newMontage = await this._prepareMontage(
+                    `${setup.name}:${montage[0]}`, montage[1], setup, template, undefined, created
+                )
                 if (newMontage) {
                     Log.debug(`Added montage '${montage[0]}' for setup '${setup.name}'.`, SCOPE)
                     if (!this._recordMontage && montage[0] === 'rec') {
@@ -908,17 +914,87 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
             for (const montage of extraMontages) {
                 if (
                     this._setups.find(s => s.name === setup) &&
-                    await this.addMontage(
+                    await this._prepareMontage(
                         `${setup}:${montage.name}`,
                         montage.label,
                         setup,
-                        montage
+                        montage,
+                        undefined,
+                        created,
                     )
                 ) {
                     Log.debug(`Added extra montage '${montage.label}' for setup '${setup}'.`, SCOPE)
                 }
             }
         }
+        if (created.length) {
+            this._setPropertyValue('montages', [...this.montages, ...created])
+        }
+    }
+
+    /**
+     * Find or create the montage `name` and commission its worker-side cache, without publishing it on `montages`.
+     * A montage this creates is appended to `created`, and the caller publishes the list; an existing one, in
+     * `montages` or already in `created`, is wired again instead, since the cache may have been set up anew.
+     * @param created - Montages created by this caller and not yet published; checked for `name` and appended to.
+     * @returns The montage, or null if it cannot be made.
+     */
+    protected async _prepareMontage (
+        name: string,
+        label: string,
+        setup: BiosignalSetup | string,
+        template: BiosignalMontageTemplate | undefined,
+        config: ConfigMapChannels | undefined,
+        created: EegMontage[],
+    ) {
+        const existing = this.montages.find(m => m.name === name) || created.find(m => m.name === name) || null
+        if (this._mutexProps && this._service?.bufferRangeStart === INDEX_NOT_ASSIGNED) {
+            Log.error(`Cannot add a montage before buffer has been initialized.`, SCOPE)
+            return null
+        }
+        if (existing) {
+            Log.debug(`Montage '${name}' already exists.`, SCOPE)
+            if (this._mutexProps) {
+                await existing.setupServiceWithInputMutex(this._mutexProps)
+            } else if (this._cacheProps) {
+                await existing.setupServiceWithCache(this._cacheProps)
+            }
+            existing.setInterruptions(this._interruptions)
+            return existing
+        }
+        if (typeof setup === 'string') {
+            const cachedSetup = this._setups.find(s => s.name === setup)
+            if (!cachedSetup) {
+                Log.error(`Setup ${setup} not found.`, SCOPE)
+                return null
+            }
+            setup = cachedSetup
+        }
+        const montage = new EegMontage(
+            name, this, setup,
+            template,
+            this._memoryManager || undefined,
+            { label: label }
+        )
+        montage.mapChannels(config)
+        // The worker-side cache is commissioned before the montage is published on the `montages` property, and that
+        // order is the contract: the property-change dispatch is synchronous, so a listener may request signals from
+        // within it. A montage published ahead of its commission answers such a request while the worker-side
+        // processor still holds no cache, which fails rather than waiting. Awaiting the commission here means every
+        // listener sees a montage that can serve signals.
+        //
+        // With neither a mutex nor a cache available there is nothing to commission against; the montage is published
+        // unwired and `_wireMontageDataSources` commissions it once the buffer exists.
+        if (this._mutexProps) {
+            await montage.setupServiceWithInputMutex(this._mutexProps)
+        } else if (this._cacheProps) {
+            await montage.setupServiceWithCache(this._cacheProps)
+        }
+        // Interruptions are set before publication too, so a listener that asks about gaps gets the same answer it
+        // would after a full setup pass.
+        montage.setInterruptions(this._interruptions)
+        created.push(montage)
+        return montage
     }
 
     /**
@@ -1201,60 +1277,11 @@ export default class EegRecording extends GenericBiosignalResource implements Ee
         template?: BiosignalMontageTemplate,
         config?: ConfigMapChannels
     ) {
-        let montage = this.montages.find(m => m.name === name) || null
-        if (this._mutexProps && this._service?.bufferRangeStart === INDEX_NOT_ASSIGNED) {
-            Log.error(`Cannot add a montage before buffer has been initialized.`, SCOPE)
-            return null
+        const created: EegMontage[] = []
+        const montage = await this._prepareMontage(name, label, setup, template, config, created)
+        if (created.length) {
+            this._setPropertyValue('montages', [...this.montages, ...created])
         }
-        if (montage) {
-            Log.debug(`Montage '${name}' already exists.`, SCOPE)
-        } else {
-            if (typeof setup === 'string') {
-                const cachedSetup = this._setups.find(s => s.name === setup)
-                if (!cachedSetup) {
-                    Log.error(`Setup ${setup} not found.`, SCOPE)
-                    return null
-                }
-                setup = cachedSetup
-            }
-            montage = new EegMontage(
-                name, this, setup,
-                template,
-                this._memoryManager || undefined,
-                { label: label }
-            )
-            montage.mapChannels(config)
-            // The worker-side cache is commissioned before the montage is published on the
-            // `montages` property, and that order is the contract: the property-change dispatch is
-            // synchronous, so a listener may request signals from within it. A montage published
-            // ahead of its commission answers such a request while the worker-side processor still
-            // holds no cache, which fails rather than waiting. Awaiting the commission here means
-            // every listener sees a montage that can serve signals.
-            //
-            // With neither a mutex nor a cache available there is nothing to commission against;
-            // the montage is published unwired and `_wireMontageDataSources` commissions it once
-            // the buffer exists.
-            if (this._mutexProps) {
-                await montage.setupServiceWithInputMutex(this._mutexProps)
-            } else if (this._cacheProps) {
-                await montage.setupServiceWithCache(this._cacheProps)
-            }
-            // Set interruptions before the property change too so any listener
-            // that asks about gaps gets the same answer it would after a full
-            // setup pass.
-            montage.setInterruptions(this._interruptions)
-            // Now publish to the world.
-            this._setPropertyValue('montages', [...this.montages, montage])
-            return montage
-        }
-        // Existing-montage path: cache may have been re-set up upstream
-        // (mutex re-init), so still wire it.
-        if (this._mutexProps) {
-            await montage.setupServiceWithInputMutex(this._mutexProps)
-        } else if (this._cacheProps) {
-            await montage.setupServiceWithCache(this._cacheProps)
-        }
-        montage.setInterruptions(this._interruptions)
         return montage
     }
 

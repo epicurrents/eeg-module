@@ -191,6 +191,8 @@ The release itself is asynchronous and runs in the background with its draining 
 
 Where neither a mutex nor a cache exists yet, there is nothing to commission against and the montage is published unwired; `_wireMontageDataSources` commissions it from `_completeSetup` once the buffer is in place. A consumer is free to add a montage as soon as the resource is constructed, so this is an ordinary path rather than an edge case.
 
+`_applyDefaultMontages` commissions every default montage through `_prepareMontage` before publishing any, then publishes them in one change of `montages`, since a viewer answers each change by re-rendering. `addMontage` is the same two steps for a single montage, so a subclass that overrides `addMontage` is not consulted for the defaults; one that needs to change them overrides `_applyDefaultMontages`, as `PsgRecording` does.
+
 ---
 
 ## Biosignal trends — the EEG-owned parts
